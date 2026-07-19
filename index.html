@@ -451,7 +451,11 @@
 /* ================= database ================= */
 const SUPABASE_URL = 'https://gcrarjjdabukmzbxryax.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_-1V5ysVm67J1PnN17KRdww_dDWsnI_3';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true }
+});
+// Never put the current hash in emailRedirectTo — a prior #error=… poisons the next magic link.
+const AUTH_REDIRECT_URL = `${window.location.origin}${window.location.pathname}`;
 
 /* NOTE ON THE GITHUB TOKEN: it deliberately stays in window.storage (browser-local,
    artifact-private), NOT in Supabase. The anon key above lives in this HTML file —
@@ -1775,26 +1779,77 @@ document.getElementById('authSendBtn').addEventListener('click', async ()=>{
   const status = document.getElementById('authStatus');
   if(!email){ status.textContent = 'enter your email first'; return; }
   status.textContent = 'sending…';
-  const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
-  status.textContent = error ? `couldn't send: ${error.message}` : `check ${email} for a sign-in link`;
+  const { error } = await db.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: AUTH_REDIRECT_URL }
+  });
+  status.textContent = error ? `couldn't send: ${error.message}` : `check ${email} for a sign-in link — open it once, from a fresh email`;
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
   await db.auth.signOut();
 });
 
+function authCallbackParams(){
+  // Repair mangled redirects like …&sb=#access_token=… (hash already had #error=…)
+  const hash = (window.location.hash || '').replace(/^#/, '').replace(/(^|&)sb=#access_token=/i, '$1access_token=');
+  const query = (window.location.search || '').replace(/^\?/, '');
+  return new URLSearchParams([query, hash].filter(Boolean).join('&'));
+}
+
+function clearAuthParamsFromUrl(){
+  if(window.location.hash || window.location.search){
+    history.replaceState({}, '', AUTH_REDIRECT_URL);
+  }
+}
+
+async function recoverSessionFromUrl(){
+  const params = authCallbackParams();
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  const err = params.get('error_description') || params.get('error');
+
+  // Mangled hash: error params + tokens after &sb=#access_token=…
+  if(access_token && refresh_token){
+    const { data, error } = await db.auth.setSession({ access_token, refresh_token });
+    clearAuthParamsFromUrl();
+    if(error) return { error: error.message };
+    return { session: data.session };
+  }
+
+  if(err && !params.get('code')){
+    clearAuthParamsFromUrl();
+    return { error: decodeURIComponent(String(err).replace(/\+/g, ' ')) };
+  }
+
+  // PKCE (?code=…) — leave the URL alone; supabase-js exchanges it via detectSessionInUrl
+  return {};
+}
+
 async function initAuth(){
+  const recovered = await recoverSessionFromUrl();
+  // Give PKCE code exchange a moment if present
+  if(new URLSearchParams(window.location.search).get('code')){
+    await new Promise(r => setTimeout(r, 50));
+  }
   const { data: { session } } = await db.auth.getSession();
-  if(session){
-    currentUserId = session.user.id;
+  const active = recovered.session || session;
+  if(active){
+    currentUserId = active.user.id;
     showApp();
+    clearAuthParamsFromUrl();
   }else{
     showLoginGate();
+    if(recovered.error){
+      document.getElementById('authStatus').textContent =
+        `sign-in link expired or already used — request a new one`;
+    }
   }
   db.auth.onAuthStateChange((event, session)=>{
     if(session && session.user.id !== currentUserId){
       currentUserId = session.user.id;
       showApp();
+      clearAuthParamsFromUrl();
     }else if(!session){
       currentUserId = null;
       showLoginGate();
