@@ -1783,7 +1783,14 @@ document.getElementById('authSendBtn').addEventListener('click', async ()=>{
     email,
     options: { emailRedirectTo: AUTH_REDIRECT_URL }
   });
-  status.textContent = error ? `couldn't send: ${error.message}` : `check ${email} for a sign-in link — open it once, from a fresh email`;
+  if(error){
+    const detail = [error.message, error.code, error.status].filter(Boolean).join(' · ')
+      || JSON.stringify(error, Object.getOwnPropertyNames(error));
+    status.textContent = `couldn't send: ${detail || 'unknown error — check Supabase Auth → SMTP (Resend) settings'}`;
+    console.error('signInWithOtp failed', error);
+  }else{
+    status.textContent = `check ${email} for a sign-in link — open it once, from a fresh email`;
+  }
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
