@@ -1,0 +1,70 @@
+# job radar
+
+A private, multi-user job search tool: scans the web for roles matching your profile,
+scores them against a rubric, tracks specific companies, generates a 6-month plan with
+concrete technical side projects, and turns those projects into real GitHub repos.
+
+## Architecture
+
+- **Frontend:** single static file, `index.html` — no build step, no framework.
+  Deployable as-is to GitHub Pages.
+- **Database:** Supabase (Postgres). Job postings are shared across all users (the app
+  gets smarter as more people use it — same posting gets deduped once). Everything else
+  — CV, skills profile, scores, plans, watchlist, portfolio — is private per user via
+  Postgres row-level security (`auth.uid() = user_id`).
+- **Auth:** Supabase Auth, magic-link email. No passwords.
+- **AI calls:** BYOK (bring your own key). Each user pastes their own Anthropic API key
+  (console.anthropic.com), stored in `localStorage` only — never touches Supabase, never
+  touches any server this app runs. Calls go straight from the user's browser to
+  `api.anthropic.com` using the `anthropic-dangerous-direct-browser-access: true` header
+  (Anthropic's documented pattern for exactly this use case).
+- **GitHub integration:** each user connects their own GitHub Personal Access Token
+  (repo scope only), also `localStorage`-only, used to spin up a real private repo +
+  README when they click "build this" on a generated side project.
+
+## Setup (new Supabase project)
+
+1. Create a project at supabase.com.
+2. SQL Editor → run `sql/01_schema.sql`, then `sql/02_migration_auth.sql`, in that order.
+   The second depends on tables the first creates.
+3. Project Settings → API → copy the Project URL and the `sb_publishable_...` (anon) key.
+4. In `index.html`, update `SUPABASE_URL` and `SUPABASE_KEY` near the top of the
+   `<script>` block to match your project.
+5. Auth → Email templates: default magic-link template works out of the box. Free tier
+   rate-limits outbound email (a handful per hour) — fine for testing, needs a custom
+   SMTP provider wired into Supabase before real traffic.
+
+## Deploying
+
+Push to GitHub, enable Pages (Settings → Pages → deploy from branch/root). No build step.
+`index.html` at repo root becomes the site.
+
+## What's in `legacy/`
+
+`cloudflare_worker_UNUSED.js` — from an earlier shared-API-key architecture where a
+Worker proxied requests and held one API key for everyone. Abandoned in favor of BYOK,
+which is simpler and doesn't require you to pay for other people's usage. Kept for
+reference only; not part of the running app.
+
+## Known tradeoffs to revisit
+
+- **RLS is real now** (per-user isolation is enforced at the database level), but there's
+  no rate limiting on signups/scans per user yet — someone could hammer their own account
+  with API calls. Not a data-leak risk, just a cost-control gap if this gets real traffic.
+- **Operator analytics** live as plain SQL views (`analytics_usage_summary`,
+  `analytics_search_trends`, `analytics_skill_demand`, `analytics_watched_companies`) —
+  query them directly in the Supabase SQL Editor. No in-app admin dashboard yet.
+- **Single HTML file, ~1800 lines.** Works, but the natural next step is splitting into
+  `index.html` (structure only) + `css/style.css` + a handful of `js/*.js` modules
+  (data layer, auth, scan, watchlist, plan, profile, portfolio, prompts-editor). Deferred
+  deliberately — better done with a real terminal and live reload than blind in a chat
+  transcript.
+- **No rate limiting or abuse protection** on the BYOK flow beyond "it's their own key,
+  their own bill."
+
+## Prompt system
+
+All four AI prompts (scan, six-month plan, watchlist scan) are stored as editable
+templates in the app itself (Prompts tab) — not hardcoded strings you need to dig through
+code to change. `{{PLACEHOLDER}}` tokens get substituted at call time; see `PROMPT_DEFS`
+in the script for the full list per prompt.

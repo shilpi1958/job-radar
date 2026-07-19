@@ -1,0 +1,1807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>job radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth.js/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #0e1210;
+    --panel: #151a17;
+    --panel-line: #263028;
+    --grid: #1c2420;
+    --phosphor: #5dff9e;
+    --phosphor-dim: #2f7a52;
+    --amber: #ffb238;
+    --text: #d7e5da;
+    --text-dim: #7d9188;
+    --danger: #ff6b5e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0/100% 28px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0/28px 100%,
+      var(--bg);
+    color:var(--text);
+    font-family:'JetBrains Mono', monospace;
+    min-height:100vh;
+  }
+  .shell{display:flex;min-height:100vh;}
+  .sidenav{
+    width:190px;flex-shrink:0;
+    border-right:1px solid var(--panel-line);background:var(--panel);
+    padding:20px 12px;display:flex;flex-direction:column;gap:6px;
+    position:sticky;top:0;height:100vh;
+  }
+  .sidenav .brand{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--phosphor);
+    padding:0 8px 16px;letter-spacing:0.3px;
+  }
+  .sidenav button{
+    text-align:left;background:none;border:1px solid transparent;color:var(--text-dim);
+    font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12.5px;padding:10px 10px;
+    border-radius:4px;cursor:pointer;letter-spacing:0.2px;
+  }
+  .sidenav button.active{color:var(--phosphor);border-color:var(--phosphor-dim);background:rgba(93,255,158,0.06);}
+  .sidenav button:hover:not(.active){color:var(--text);border-color:var(--panel-line);}
+  .wrap{max-width:900px;margin:0 auto;padding:28px 24px 60px;flex:1;min-width:0;}
+
+  @media (max-width: 720px){
+    .shell{flex-direction:column;}
+    .sidenav{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:12px;}
+    .sidenav .brand{display:none;}
+  }
+
+  /* header */
+  .scope{
+    display:flex;align-items:center;justify-content:space-between;
+    border:1px solid var(--panel-line);
+    background:var(--panel);
+    padding:16px 20px;
+    border-radius:4px;
+    margin-bottom:18px;
+  }
+  .scope h1{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:20px;font-weight:700;margin:0;
+    color:var(--phosphor);
+    letter-spacing:0.5px;
+  }
+  .scope .sub{color:var(--text-dim);font-size:11px;margin-top:4px;letter-spacing:0.5px;}
+  .dot{
+    width:8px;height:8px;border-radius:50%;background:var(--phosphor);
+    box-shadow:0 0 8px var(--phosphor);display:inline-block;margin-right:8px;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+
+  /* controls */
+  .panel{
+    border:1px solid var(--panel-line);
+    background:var(--panel);
+    border-radius:4px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .row{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .field{flex:1;min-width:200px;}
+  label{display:block;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+  input[type=text]{
+    width:100%;background:#0b0e0c;border:1px solid var(--panel-line);
+    color:var(--text);padding:9px 10px;font-family:inherit;font-size:13px;
+    border-radius:3px;outline:none;
+  }
+  input[type=text]:focus{border-color:var(--phosphor-dim);}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    border:1px solid var(--panel-line);background:#0b0e0c;color:var(--text-dim);
+    font-family:inherit;font-size:11px;padding:7px 8px 7px 12px;border-radius:20px;
+    transition:all .15s;
+  }
+  .chip .chip-label{cursor:pointer;}
+  .chip .chip-x{
+    cursor:pointer;color:var(--text-dim);opacity:0.5;font-size:10px;
+    padding:2px 4px;border-radius:50%;line-height:1;
+  }
+  .chip .chip-x:hover{opacity:1;color:var(--danger);background:rgba(255,107,94,0.12);}
+  .chip.active{border-color:var(--phosphor);color:var(--phosphor);background:rgba(93,255,158,0.08);}
+  .chip.active .chip-x{color:var(--phosphor-dim);}
+  .actions{display:flex;align-items:center;gap:12px;justify-content:space-between;}
+  button.scan{
+    background:var(--phosphor);color:#08130c;border:none;font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:13px;padding:10px 22px;border-radius:3px;cursor:pointer;
+    letter-spacing:0.5px;
+  }
+  button.scan:hover{background:#7bffb4;}
+  button.scan:disabled{background:var(--phosphor-dim);cursor:wait;}
+  .view-toggle{display:flex;gap:6px;font-size:11px;}
+  .view-toggle button{
+    background:none;border:1px solid var(--panel-line);color:var(--text-dim);
+    padding:7px 12px;border-radius:3px;cursor:pointer;font-family:inherit;
+  }
+  .view-toggle button.active{color:var(--amber);border-color:var(--amber);}
+
+  .status{font-size:11px;color:var(--text-dim);margin-bottom:14px;min-height:16px;}
+  .status.scanning{color:var(--amber);}
+  .status.scanning::after{content:'';animation:dots 1.2s steps(4,end) infinite;}
+  @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+
+  /* cards */
+  .card{
+    border:1px solid var(--panel-line);background:var(--panel);
+    border-radius:4px;padding:16px 18px;margin-bottom:12px;
+    border-left:3px solid var(--phosphor-dim);
+    position:relative;
+  }
+  .card.saved{border-left-color:var(--amber);}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .card h3{
+    font-family:'Space Grotesk',sans-serif;font-size:15px;margin:0 0 4px;color:var(--text);font-weight:600;
+  }
+  .card .company{color:var(--phosphor);font-size:12px;font-weight:600;}
+  .card .meta{color:var(--text-dim);font-size:11px;margin-top:2px;}
+  .card .fit{font-size:12px;color:var(--text);margin-top:10px;line-height:1.5;border-top:1px dashed var(--panel-line);padding-top:10px;}
+  .card .fit b{color:var(--amber);}
+  .card .gate{font-size:11px;color:var(--phosphor);margin-top:6px;line-height:1.5;}
+  .card .gate.blocked{color:var(--danger);}
+  .card-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+
+  .meter-wrap{display:flex;align-items:center;gap:10px;margin-top:10px;}
+  .meter-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
+  .meter{flex:1;height:8px;background:#0b0e0c;border:1px solid var(--panel-line);border-radius:2px;overflow:hidden;position:relative;}
+  .meter-fill{height:100%;border-radius:1px;transition:width .4s ease;}
+  .meter-score{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;min-width:34px;text-align:right;}
+  .score-high{color:var(--phosphor);}
+  .score-mid{color:var(--amber);}
+  .score-low{color:var(--danger);}
+  .star{
+    background:none;border:1px solid var(--panel-line);color:var(--text-dim);
+    width:30px;height:30px;border-radius:3px;cursor:pointer;font-size:14px;
+  }
+  .star.on{color:var(--amber);border-color:var(--amber);}
+  .broken-btn{font-size:11px;}
+  .broken-btn:hover{color:var(--danger);border-color:var(--danger);background:rgba(255,107,94,0.1);}
+  a.apply{
+    color:var(--phosphor);text-decoration:none;font-size:11px;border:1px solid var(--phosphor-dim);
+    padding:6px 10px;border-radius:3px;white-space:nowrap;
+  }
+  a.apply:hover{background:rgba(93,255,158,0.08);}
+
+  .empty{text-align:center;color:var(--text-dim);font-size:12px;padding:40px 0;}
+  .foot-note{font-size:10px;color:var(--text-dim);margin-top:24px;text-align:center;line-height:1.6;}
+
+  .source-list{display:flex;flex-direction:column;gap:9px;}
+  .source-row{font-size:12px;color:var(--text-dim);display:flex;align-items:baseline;gap:8px;line-height:1.5;}
+  .source-row b{color:var(--text);font-weight:600;}
+  .source-dot{width:7px;height:7px;border-radius:50%;background:var(--phosphor-dim);flex-shrink:0;margin-top:5px;}
+  .source-dot.live{background:var(--phosphor);box-shadow:0 0 5px var(--phosphor);}
+  .source-dot.linked{background:var(--amber);box-shadow:0 0 5px var(--amber);}
+  .source-dot.blocked{background:var(--danger);}
+
+  /* nav */
+  /* old top-nav removed in favor of .sidenav above */
+
+  /* profile view */
+  textarea{
+    width:100%;background:#0b0e0c;border:1px solid var(--panel-line);color:var(--text);
+    padding:10px;font-family:inherit;font-size:12px;line-height:1.6;border-radius:3px;
+    outline:none;resize:vertical;min-height:120px;
+  }
+  textarea:focus{border-color:var(--phosphor-dim);}
+  .panel h2{
+    font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 4px;color:var(--text);
+  }
+  .panel .desc{font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;}
+  .save-hint{font-size:10px;color:var(--phosphor-dim);margin-top:6px;height:14px;}
+
+  .gap-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .gap-name{font-size:12px;width:150px;flex-shrink:0;color:var(--text);}
+  .gap-count{font-size:10px;color:var(--text-dim);width:50px;text-align:right;flex-shrink:0;}
+
+  .plan-card{
+    border:1px solid var(--panel-line);border-left:3px solid var(--amber);background:var(--panel);
+    border-radius:4px;padding:14px 16px;margin-bottom:10px;
+  }
+  .plan-card.content-type{border-left-color:var(--phosphor);}
+  .plan-card .tag{
+    font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--amber);
+    border:1px solid var(--amber);display:inline-block;padding:2px 7px;border-radius:10px;margin-bottom:8px;
+  }
+  .plan-card.content-type .tag{color:var(--phosphor);border-color:var(--phosphor-dim);}
+  .plan-card h4{font-family:'Space Grotesk',sans-serif;font-size:13px;margin:0 0 6px;color:var(--text);}
+  .plan-card p{font-size:12px;color:var(--text-dim);margin:0;line-height:1.6;}
+  .plan-card p b{color:var(--text);}
+  .cadence-note{
+    font-size:12px;color:var(--phosphor);background:rgba(93,255,158,0.06);
+    border:1px solid var(--phosphor-dim);border-radius:4px;padding:12px 14px;margin-bottom:16px;line-height:1.6;
+  }
+</style>
+</head>
+<body>
+<div id="authGate" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div class="panel" style="max-width:420px;width:100%;">
+    <h1 style="font-family:'Space Grotesk',sans-serif;font-size:20px;color:var(--phosphor);margin:0 0 6px;"><span class="dot"></span>job radar</h1>
+    <div class="desc">
+      sign in to save your scans, plans, watchlist, and CV — all private to you, no one else can see them.
+      job postings you find get added to a shared pool so the tool gets smarter over time, but your profile, scores, and plans never are.
+      we may look at aggregate search trends (what's being searched overall) to understand how this gets used — never individual profiles or CVs.
+    </div>
+    <div class="row">
+      <div class="field">
+        <input type="email" id="authEmail" placeholder="you@example.com">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="scan" id="authSendBtn">▸ send magic link</button>
+    </div>
+    <div class="save-hint" id="authStatus"></div>
+  </div>
+</div>
+
+<div id="appShell" style="display:none;">
+<div class="shell">
+  <nav class="sidenav">
+    <div class="brand"><span class="dot"></span>job radar</div>
+    <button class="active" id="navScan">▸ scan</button>
+    <button id="navWatch">★ watchlist</button>
+    <button id="navProfile">◆ profile</button>
+    <button id="navPlan">⏱ six-month plan</button>
+    <button id="navPrompts">✎ prompts</button>
+    <button id="navPortfolio">◈ portfolio</button>
+    <div style="flex:1;"></div>
+    <button id="signOutBtn" style="color:var(--text-dim);font-size:11px;">↩ sign out</button>
+  </nav>
+  <main class="wrap">
+
+  <div class="scope">
+    <div>
+      <h1><span class="dot"></span>job radar</h1>
+      <div class="sub">scanning + scoring against your actual profile — results stack permanently, nothing gets thrown away</div>
+    </div>
+  </div>
+
+  <div id="viewScan">
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <label>keywords</label>
+        <input type="text" id="kw" value="AI product manager robotics OR deep tech OR early-stage builder">
+      </div>
+      <div class="field">
+        <label>location</label>
+        <input type="text" id="loc" value="Bengaluru or Remote India">
+      </div>
+    </div>
+    <div class="chips" id="chips">
+      <span class="chip" data-tag="healthcare"><span class="chip-label">healthcare AI / EHR</span><span class="chip-x">✕</span></span>
+      <span class="chip active" data-tag="deeptech"><span class="chip-label">robotics / hardware / deep tech</span><span class="chip-x">✕</span></span>
+      <span class="chip active" data-tag="builder"><span class="chip-label">early-stage builder PM</span><span class="chip-x">✕</span></span>
+      <span class="chip" data-tag="civic"><span class="chip-label">civic tech</span><span class="chip-x">✕</span></span>
+    </div>
+    <div class="desc" style="margin-top:-8px;">click a chip to toggle it on/off · click the ✕ to remove it entirely (you can always re-add it as a custom keyword below)</div>
+    <div class="chips" id="customTagsWrap"></div>
+    <div class="row" style="margin-bottom:14px;">
+      <div class="field">
+        <input type="text" id="addTagInput" placeholder="add any focus area — press Enter (e.g. 'defense tech', 'climate hardware')">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="scan" id="scanBtn">▸ run scan</button>
+      <div class="view-toggle">
+        <button class="active" id="tabAll">results</button>
+        <button id="tabSaved">saved (<span id="savedCount">0</span>)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+  <div id="results"></div>
+
+  <div class="panel">
+    <h2>◆ sources this scan actually uses</h2>
+    <div class="desc">no black box — this is the real list, ordered by priority. each result above shows which one it came from.</div>
+    <div class="source-list">
+      <div class="source-row"><span class="source-dot live"></span><b>live web search</b> — company career pages, checked first, direct source</div>
+      <div class="source-row"><span class="source-dot live"></span><b>Instahyre, Cutshort</b> — India-focused early-stage/technical roles, weighted heavily</div>
+      <div class="source-row"><span class="source-dot live"></span><b>Wellfound (AngelList), Naukri</b> — general startup + India job aggregators</div>
+      <div class="source-row"><span class="source-dot live"></span><b>YC jobs board</b> — ycombinator.com/jobs, direct</div>
+      <div class="source-row"><span class="source-dot live"></span><b>HN "Who is Hiring" threads</b> — monthly thread, public, no login wall</div>
+      <div class="source-row"><span class="source-dot live"></span><b>GitHub org pages</b> — some early-stage companies post roles in repo READMEs</div>
+      <div class="source-row"><span class="source-dot live"></span><b>BuiltIn, We Work Remotely, RemoteOK</b> — fallback for remote-friendly roles</div>
+      <div class="source-row"><span class="source-dot live"></span><b>Indeed, ZipRecruiter</b> — reached via web search, not a direct connector (this app runs on your own API key, not a shared account with pre-authorized connections)</div>
+      <div class="source-row"><span class="source-dot blocked"></span><b>LinkedIn, Twitter/X</b> — not reachable, ToS-blocked for scraping, no personal-tool API path</div>
+    </div>
+  </div>
+
+  <div class="foot-note">
+    match score weighs domain fit, ownership/stage, location, and — the important one — whether the posting actually gates on developer experience vs. just wants engineering literacy. gated roles are flagged, not hidden.<br>
+    every scan adds to a permanent list, deduped by company+role — nothing gets discarded. running the exact same search again within a week just asks first, since postings don't move that fast.
+  </div>
+  </div>
+
+  <div id="viewWatchlist" style="display:none">
+    <div class="panel">
+      <h2>companies you're tracking</h2>
+      <div class="desc">add any company by name — this pulls their actual current open roles, not a generic scan.</div>
+      <div class="chips" id="watchChips"></div>
+      <div class="row" style="margin-bottom:14px;">
+        <div class="field">
+          <input type="text" id="watchInput" placeholder="add a company name — press Enter (e.g. 'Ather Energy', 'Peoplebox.ai')">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="scan" id="watchScanBtn">▸ check open roles</button>
+      </div>
+    </div>
+
+    <div class="status" id="watchStatus"></div>
+    <div id="watchResults"></div>
+
+    <div class="desc" style="text-align:center;margin-top:4px;">roles found here feed straight into the one shared six-month plan — no separate plan to generate here anymore.</div>
+  </div>
+
+  <div id="viewProfile" style="display:none">
+    <div class="panel" style="border-color:var(--phosphor-dim);">
+      <h2>▸ connect your Claude API key</h2>
+      <div class="desc">
+        required — nothing that calls the model works without this. get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a> (separate from any claude.ai subscription — this is pay-per-use API billing, you'll need a payment method there).
+        stored only in <b>this browser</b>, never sent to any server this app runs — every scan and plan call goes straight from your browser to Anthropic.
+      </div>
+      <div class="row">
+        <div class="field">
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="scan" id="apiKeySaveBtn">▸ save</button>
+        <span id="apiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>what you've got</h2>
+      <div class="desc">your proof points — edit freely, this feeds the gap analysis and plan below. saved automatically.</div>
+      <textarea id="skillsBox"></textarea>
+      <div class="save-hint" id="saveHint"></div>
+    </div>
+
+    <div class="panel">
+      <h2>upload your CV</h2>
+      <div class="desc">optional, but it's the real thing — pulls actual text out of your CV and feeds it into every scan and plan alongside the box above. .pdf, .docx, or .txt. stays private to this artifact, never leaves your storage.</div>
+      <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="cvUpload" class="scan" style="display:inline-block;cursor:pointer;">▸ choose file</label>
+        <span id="cvFileName" style="font-size:12px;color:var(--text-dim);"></span>
+        <button id="cvRemove" class="star" style="display:none;width:auto;padding:0 10px;">remove</button>
+      </div>
+      <div class="save-hint" id="cvStatus"></div>
+    </div>
+
+    <div class="panel">
+      <h2>connect GitHub</h2>
+      <div class="desc">
+        lets any side project spin up a real private repo + starter README in one click.
+        needs a personal access token — <a href="https://github.com/settings/tokens/new?scopes=repo&description=job%20radar" target="_blank" style="color:var(--phosphor);">generate one here</a> (classic token, "repo" scope only is enough, nothing broader).
+        this goes straight from your browser to GitHub's API — the token is stored only in this artifact's private storage, never sent anywhere else, and you can revoke it on GitHub any time.
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>GitHub username</label>
+          <input type="text" id="ghUsername" placeholder="your-username">
+        </div>
+        <div class="field">
+          <label>personal access token</label>
+          <input type="password" id="ghToken" placeholder="ghp_...">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="scan" id="ghSaveBtn">▸ save</button>
+        <span id="ghStatus" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewPlan" style="display:none">
+    <div class="panel">
+      <h2>what the market keeps asking for</h2>
+      <div class="desc">tallied live from every scan you've run, in "scan" and "watchlist" both — one shared signal, not split across tabs. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
+      <div id="gapBars"><div class="empty">run a few scans first — this fills in from real postings, not guesses.</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>6-month plan</h2>
+      <div class="desc">one plan — built from your skills, everything tallied from real postings, and any companies you're tracking below get factored in automatically. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <button class="scan" id="genPlanBtn">▸ generate plan</button>
+      <div class="status" id="planStatus"></div>
+    </div>
+
+    <div id="planResults"></div>
+  </div>
+
+  <div id="viewPrompts" style="display:none">
+    <div class="panel">
+      <h2>✎ edit the actual prompts</h2>
+      <div class="desc">
+        these are the real prompt templates sent to the model — not a simplified version. edit freely; use the <code>{{PLACEHOLDER}}</code> tokens exactly as shown to keep the dynamic parts working. saved changes apply on your next scan/plan run. "reset" restores the built-in version.
+      </div>
+    </div>
+    <div id="promptEditors"></div>
+  </div>
+
+  <div id="viewPortfolio" style="display:none">
+    <div class="panel">
+      <h2>your project portfolio</h2>
+      <div class="desc">every repo you've spun up from a side project, in one place — share this list as-is.</div>
+      <div id="portfolioList"><div class="empty">nothing built yet — hit "build this" on a project in a plan.</div></div>
+    </div>
+  </div>
+
+  </main>
+</div>
+</div>
+
+<script>
+/* ================= database ================= */
+const SUPABASE_URL = 'https://gcrarjjdabukmzbxryax.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_-1V5ysVm67J1PnN17KRdww_dDWsnI_3';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* NOTE ON THE GITHUB TOKEN: it deliberately stays in window.storage (browser-local,
+   artifact-private), NOT in Supabase. The anon key above lives in this HTML file —
+   anyone who has the file can read/write every table via RLS "allow all" policies.
+   That's an acceptable tradeoff for job data on a personal tool, but a GitHub PAT
+   is a real credential and shouldn't sit in a DB reachable by that same exposed key. */
+
+let currentUserId = null;
+
+function jobKey(job){ return (job.company||'') + '::' + (job.title||''); }
+
+/* ---- settings: one row per (user, key) ---- */
+async function settingGet(key, fallback){
+  try{
+    const { data, error } = await db.from('app_settings').select('value').eq('key', key).eq('user_id', currentUserId).maybeSingle();
+    if(error || !data) return fallback;
+    return data.value;
+  }catch(e){ return fallback; }
+}
+async function settingSet(key, value){
+  try{ await db.from('app_settings').upsert({ key, value, user_id: currentUserId, updated_at: new Date().toISOString() }); }
+  catch(e){ console.error('settingSet failed', key, e); }
+}
+async function settingDelete(key){
+  try{ await db.from('app_settings').delete().eq('key', key).eq('user_id', currentUserId); }catch(e){}
+}
+
+/* ---- jobs: SHARED across everyone — upsert with smartMerge semantics (never let a
+   blank field overwrite a good one). This is the "gets smarter over time" pool. ---- */
+async function upsertJob(job){
+  try{
+    const { data: existing } = await db.from('jobs').select('*').eq('company', job.company||'').eq('title', job.title||'').maybeSingle();
+    const merged = existing ? smartMerge(existing, job) : job;
+    const row = {
+      company: job.company||'', title: job.title||'',
+      location: merged.location||null, url: merged.url||null,
+      last_seen: new Date().toISOString(),
+      origins: Array.from(new Set([...(existing?.origins||[]), job.origin].filter(Boolean)))
+    };
+    const { data, error } = await db.from('jobs').upsert(row, { onConflict: 'company,title' }).select().maybeSingle();
+    if(error){ console.error('upsertJob failed', error); return existing || null; }
+    return data;
+  }catch(e){ console.error('upsertJob threw', e); return null; }
+}
+
+async function insertScan(scanType, meta){
+  try{
+    const { data, error } = await db.from('scans').insert({
+      scan_type: scanType, keywords: meta.keywords||null, location: meta.location||null,
+      tags: meta.tags||null, companies: meta.companies||null, user_id: currentUserId
+    }).select().maybeSingle();
+    if(error){ console.error('insertScan failed', error); return null; }
+    return data.id;
+  }catch(e){ console.error('insertScan threw', e); return null; }
+}
+
+async function insertJobScanResult(jobId, scanId, job){
+  try{
+    await db.from('job_scan_results').insert({
+      job_id: jobId, scan_id: scanId, user_id: currentUserId,
+      score: job.score ?? null, gate: job.gate || null,
+      fit: job.fit || null, jd_summary: job.jd_summary || null,
+      skills_required: job.skills_required || [], source: job.source || null
+    });
+  }catch(e){ console.error('insertJobScanResult failed', e); }
+}
+
+async function insertSkillSignals(skills, scanId){
+  if(!Array.isArray(skills) || !skills.length) return;
+  const rows = skills.map(s => ({ skill: String(s).trim().toLowerCase(), scan_id: scanId, user_id: currentUserId })).filter(r=>r.skill);
+  if(!rows.length) return;
+  try{ await db.from('skill_signal').insert(rows); }catch(e){ console.error('insertSkillSignals failed', e); }
+}
+
+/* mergeIntoStack: upserts each fresh job into the SHARED pool, records this scan's
+   score/fit/gate as history scoped to the current user, tallies skills privately,
+   then returns this user's own current job list. */
+async function mergeIntoStack(freshJobs, origin, scanId){
+  const broken = await getBrokenLinks();
+  for(const job of freshJobs){
+    const key = jobKey(job);
+    if(!key.trim() || broken.includes(key)) continue;
+    const jobRow = await upsertJob(Object.assign({}, job, { origin }));
+    if(!jobRow) continue;
+    await insertJobScanResult(jobRow.id, scanId, job);
+  }
+  if(scanId) await insertSkillSignals(freshJobs.flatMap(j => j.skills_required || []), scanId);
+  return await getUnifiedJobs();
+}
+
+/* getUnifiedJobs: jobs come from the SHARED pool, but only ones THIS user has
+   personally scanned — each showing the score/fit/gate computed for their own
+   profile, not anyone else's. Two users can both discover the same posting (shared
+   dedup) while seeing completely different scores against it (private evaluation). */
+async function getUnifiedJobs(){
+  if(!currentUserId) return [];
+  try{
+    const [{ data: results, error: resErr }, { data: brokenRows }] = await Promise.all([
+      db.from('job_scan_results').select('*, jobs!inner(*)').eq('user_id', currentUserId).order('created_at', { ascending: false }),
+      db.from('broken_links').select('job_id')
+    ]);
+    if(resErr){ console.error('getUnifiedJobs query failed', resErr); return []; }
+    const brokenIds = new Set((brokenRows||[]).map(r=>r.job_id));
+    const latestByJob = {};
+    (results||[]).forEach(r=>{ if(!latestByJob[r.job_id]) latestByJob[r.job_id] = r; });
+    return Object.values(latestByJob)
+      .filter(r => !brokenIds.has(r.job_id))
+      .map(r=>{
+        const j = r.jobs;
+        return {
+          id: j.id, company: j.company, title: j.title, location: j.location, url: j.url,
+          origins: j.origins || [], score: r.score ?? null, gate: r.gate || null,
+          fit: r.fit || null, jd_summary: r.jd_summary || null,
+          skills_required: r.skills_required || [], source: r.source || null
+        };
+      });
+  }catch(e){ console.error('getUnifiedJobs threw', e); return []; }
+}
+
+/* broken_links: SHARED — a dead link is dead for everyone, no reason to make each
+   user rediscover the same 404. */
+async function getBrokenLinks(){
+  try{
+    const { data } = await db.from('broken_links').select('job_id, jobs!inner(company,title)');
+    return (data||[]).map(r => (r.jobs.company||'') + '::' + (r.jobs.title||''));
+  }catch(e){ return []; }
+}
+
+async function markLinkBroken(key){
+  if(!confirm('Mark this as a dead link? It\'ll be removed and blocked from ever showing up again.')) return;
+  const job = currentResults.find(j => jobKey(j) === key);
+  if(!job || !job.id){ alert('Could not find that job to flag.'); return; }
+  try{ await db.from('broken_links').upsert({ job_id: job.id }); }catch(e){ console.error(e); }
+  if(savedJobs[key]){
+    delete savedJobs[key];
+    try{ await db.from('saved_jobs').delete().eq('job_id', job.id).eq('user_id', currentUserId); }catch(e){}
+    document.getElementById('savedCount').textContent = Object.keys(savedJobs).length;
+  }
+  await loadStack();
+  await renderWatchResults();
+}
+
+async function loadStack(){
+  currentResults = (await getUnifiedJobs()).sort((a,b)=>(b.score||0)-(a.score||0));
+  render();
+}
+
+async function toggleSave(job){
+  const key = jobKey(job);
+  if(!job.id) return;
+  if(savedJobs[key]){
+    delete savedJobs[key];
+    try{ await db.from('saved_jobs').delete().eq('job_id', job.id).eq('user_id', currentUserId); }catch(e){}
+  }else{
+    savedJobs[key] = job;
+    try{ await db.from('saved_jobs').upsert({ job_id: job.id, user_id: currentUserId }); }catch(e){}
+  }
+  document.getElementById('savedCount').textContent = Object.keys(savedJobs).length;
+  render();
+}
+
+async function loadSaved(){
+  try{
+    const { data } = await db.from('saved_jobs').select('job_id, jobs!inner(*)').eq('user_id', currentUserId);
+    savedJobs = {};
+    (data||[]).forEach(r=>{ savedJobs[jobKey(r.jobs)] = Object.assign({}, r.jobs, { id: r.job_id }); });
+  }catch(e){ savedJobs = {}; }
+  document.getElementById('savedCount').textContent = Object.keys(savedJobs).length;
+}
+
+/* ---- skill tally: private per user — aggregated live from skill_signal ---- */
+async function tallySkills(){ /* kept as a no-op shim — tallying now happens inside mergeIntoStack via insertSkillSignals */ }
+
+async function getSkillTally(){
+  try{
+    const { data, error } = await db.from('skill_signal').select('skill').eq('user_id', currentUserId);
+    if(error || !data) return { tally: {}, postingsAnalyzed: 0 };
+    const tally = {};
+    data.forEach(r => { tally[r.skill] = (tally[r.skill]||0) + 1; });
+    const { count } = await db.from('job_scan_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUserId);
+    return { tally, postingsAnalyzed: count || 0 };
+  }catch(e){ return { tally: {}, postingsAnalyzed: 0 }; }
+}
+
+/* ---- portfolio: private per user ---- */
+async function addPortfolioRepo(title, url){
+  try{ await db.from('portfolio_repos').insert({ project_title: title, repo_url: url, user_id: currentUserId }); }catch(e){ console.error(e); }
+}
+async function getPortfolio(){
+  try{
+    const { data } = await db.from('portfolio_repos').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
+    return data || [];
+  }catch(e){ return []; }
+}
+
+/* ---- watch companies: private per user ---- */
+async function getWatchCompanies(){
+  try{
+    const { data } = await db.from('watch_companies').select('company_name').eq('user_id', currentUserId).order('company_name');
+    return (data||[]).map(r=>r.company_name);
+  }catch(e){ return []; }
+}
+async function addWatchCompany(name){
+  try{ await db.from('watch_companies').upsert({ company_name: name, user_id: currentUserId }, { onConflict: 'user_id,company_name' }); }catch(e){ console.error(e); }
+}
+async function removeWatchCompany(name){
+  try{ await db.from('watch_companies').delete().eq('company_name', name).eq('user_id', currentUserId); }catch(e){ console.error(e); }
+}
+
+/* ---- plans: private per user, every generation kept, not overwritten ---- */
+async function savePlan(plan, marketTallySnapshot){
+  try{
+    await db.from('plans').insert({
+      skill_gaps: plan.skill_gaps || [], side_projects: plan.side_projects || [],
+      cadence: plan.cadence || null, market_tally_snapshot: marketTallySnapshot || null,
+      user_id: currentUserId
+    });
+  }catch(e){ console.error('savePlan failed', e); }
+}
+async function getLatestPlan(){
+  try{
+    const { data } = await db.from('plans').select('*').eq('user_id', currentUserId).order('generated_at', { ascending: false }).limit(1).maybeSingle();
+    return data || null;
+  }catch(e){ return null; }
+}
+
+/* ---- user's own Claude API key: deliberately plain localStorage, not Supabase, not
+   window.storage — this must never leave the visitor's own browser. Each person's key
+   goes straight from their browser to Anthropic; this app's servers never see it. */
+function getApiKey(){ return localStorage.getItem('anthropic_api_key') || ''; }
+function requireApiKey(){
+  const key = getApiKey();
+  if(!key){
+    alert('Add your Claude API key first — go to Profile → "connect your Claude API key."');
+    return null;
+  }
+  return key;
+}
+function anthropicHeaders(){
+  return {
+    'Content-Type': 'application/json',
+    'x-api-key': getApiKey(),
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true'
+  };
+}
+document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('apiKeyInput').value.trim();
+  const status = document.getElementById('apiKeyStatus');
+  if(!val){ status.textContent = 'paste a key first'; return; }
+  localStorage.setItem('anthropic_api_key', val);
+  document.getElementById('apiKeyInput').value = '';
+  status.textContent = 'saved — stored in this browser only';
+});
+function loadApiKeyStatus(){
+  const status = document.getElementById('apiKeyStatus');
+  status.textContent = getApiKey() ? 'connected — stored in this browser' : 'not connected yet';
+}
+
+const activeTags = new Set(['deeptech','builder']);
+let customTags = [];
+
+/* ================= editable prompt templates =================
+   These are the ACTUAL prompts sent to the model. {{PLACEHOLDER}} tokens get
+   substituted at call time. Overrides are stored in the app_settings table;
+   if no override exists, the DEFAULT_* constant below is used as-is. */
+
+
+/* ---- shared building blocks, referenced by {{PLACEHOLDER}} in multiple prompts below.
+   Fixes two real bugs: (1) the candidate-stance paragraph was hand-copied into four
+   prompts with drifting wording, (2) the scan and watchlist-scan rubrics scored the
+   same four things with DIFFERENT point weights (35/25/30/10 vs 40/-/40/20), so a
+   "73" meant different math depending on which tab produced it. Now there's one
+   version of each, used everywhere. Edit here (or override per-prompt in the Prompts
+   tab by replacing the placeholder with custom text in that one template). */
+
+const CANDIDATE_STANCE_TEXT = `She is deliberately NOT targeting further healthcare roles even though she currently works in healthcare AI — treat that experience as a transferable asset (agentic AI systems, data pipelines, regulated-data/config work) to pitch into other domains, not as the industry she wants to stay in. Her target roles: deep-tech/robotics PM, or high-ownership early-stage builder PM, outside healthcare. Based in Bengaluru, India. Prefers early-stage, technically complex companies, high ownership. Explicitly not interested in VC, advisory, or crypto/Web3 roles. Critically: she has an engineering/technical background and can go deep with engineers, but has NEVER worked as a professional software developer — no shipped-code job history, no "X years as SWE."`;
+
+const RUBRIC_TEXT = `- Domain fit (healthcare AI/EHR, or robotics/hardware/deep tech, or clearly execution-heavy early-stage PM): up to 35 points
+- Ownership/stage fit (early-stage, high-autonomy, builder culture, not corporate/process-heavy): up to 25 points
+- Technical-bar fit: up to 30 points. Give FULL points if the posting values engineering literacy, technical depth, or an engineering degree WITHOUT mandating professional developer/SWE experience. Give ZERO if the posting explicitly requires "X years as a software engineer/developer" or a coding-heavy background as a hard requirement — that is a real gate she cannot pass, flag it clearly.
+- Location fit (Bengaluru or genuinely remote-friendly India-based): up to 10 points
+Also set "gate": a short note if there's a hard requirement she doesn't meet (e.g. "requires 3+ yrs as SWE"), or null if there's no such gate.`;
+
+const DEFAULT_PROMPT_SCAN = `Search the web right now for CURRENT, REAL, live job openings (not generic listing-site search pages) that match this candidate. Focus areas: {{FOCUS_AREAS}}.
+
+Prioritize these sources, in order, over generic search results:
+1. Company career pages directly (search "site:[company].com careers" style or the company's own jobs page)
+2. Wellfound (AngelList Talent), Naukri, Instahyre, Cutshort — Instahyre and Cutshort specifically skew toward Indian early-stage/technical roles, weight these heavily for her profile
+3. Indeed, ZipRecruiter, and other structured job boards via regular web search
+4. YC's own jobs board (ycombinator.com/jobs)
+5. Hacker News "Who is Hiring" monthly thread (search site:news.ycombinator.com "who is hiring")
+6. GitHub org pages/READMEs for early-stage technical companies that post open roles there
+7. BuiltIn, We Work Remotely, RemoteOK for remote-friendly options
+Only fall back to generic listing aggregators if these don't surface enough results.
+Keywords to search with: "{{KEYWORDS}}". Location preference: {{LOCATION}} (include strong remote-friendly roles too).
+
+Candidate profile — her own proof points, and CV text if she's uploaded one:
+{{CANDIDATE_PROFILE}}
+
+Fixed context: {{CANDIDATE_STANCE}}
+
+Score each role 0-100 using this rubric:
+{{RUBRIC}}
+
+Find up to 5 real, specific, currently-open roles at named companies. For each, give:
+- title
+- company
+- location
+- a direct URL to the posting — CRITICAL: this must be the literal URL returned by the search, copied exactly. NEVER construct, guess, or pattern-match a URL yourself (e.g. never assume "company.com/careers/[role-slug]" exists just because it looks plausible). If you don't have a verified direct link from a search result, use the company's actual careers/jobs listing page URL instead — also taken verbatim from a search result, never invented.
+- fit: one sentence on why it fits this specific candidate
+- score: integer 0-100 per the rubric above
+- gate: short string naming a hard blocker, or null
+- skills_required: array of 3-6 short skill/requirement tags actually mentioned in the posting (e.g. "SQL", "3+ yrs SWE", "stakeholder management", "clinical domain knowledge")
+- source: which of the prioritized sources this actually came from (e.g. "company careers page", "Instahyre", "Cutshort", "YC jobs board", "HN who is hiring", "GitHub", "Wellfound", or the aggregator name if none of those applied)
+
+Respond with ONLY a raw JSON array, no markdown fences, no preamble. Never use double-quote characters inside string values (use single quotes if quoting something). Format:
+[{"title":"","company":"","location":"","url":"","fit":"","score":0,"gate":null,"skills_required":[],"source":""}]`;
+
+const DEFAULT_PROMPT_PLAN = `Candidate wants to leave her current company within 6 months for a better-fit role. She wants to do this quietly — no public announcements, no content that signals to her current employer or network that she's job hunting. Here is her real, self-reported skill/proof-point inventory:
+{{CANDIDATE_PROFILE}}
+
+Here is what real job postings scanned for her have actually been asking for, across both general search and specific companies she's tracking (tag: frequency): {{MARKET_TALLY}}
+
+{{CANDIDATE_STANCE}}
+
+Companies she is specifically tracking and would prioritize getting into, if any: {{WATCHLIST_COMPANIES}}
+
+Give her a concrete plan. Two parts:
+
+1. skill_gaps — specific gaps versus what postings actually ask for, PLUS the kind of systems-level knowledge a sharp technical interviewer would probe for even if no posting explicitly lists it: ML infrastructure, GPU/inference cost and scheduling, training vs. serving tradeoffs, data pipeline architecture at scale, observability, MLOps (deployment, versioning, rollback, monitoring for drift). If her postings tally doesn't surface these, include them anyway — they are the kind of thing a technically sharp interviewer brings up unprompted to test depth, and a PM who can hold that conversation stands out immediately.
+
+2. side_projects — the bar here is "makes a sharp technical interviewer sit up," not "checks a box." Each project must involve REAL systems-level depth: actually standing up infrastructure, actually measuring and optimizing something non-trivial (cost, latency, throughput, failure modes), actually hitting real constraints and solving them. Concrete calibration:
+- REJECT: CRUD dashboards, "build a chatbot with an API," tutorial-following, anything where the interesting parts are pre-solved by a framework.
+- TARGET: e.g. benchmark inference cost/latency across quantization strategies on real hardware and write up the tradeoff curve; stand up a small self-hosted GPU inference cluster and load-test it under failure conditions; build a data pipeline that ingests real messy data at volume and survives adversarial edge cases; implement a scaled-down MLOps loop (model versioning, canary rollout, automatic rollback on a defined metric) end to end; instrument and optimize a real system's cost or latency and show the before/after numbers.
+- Each project should build on what she already knows how to do (hands-on hardware/systems builder, not a from-scratch beginner) and push into infra/MLOps/systems territory she hasn't touched yet.
+- If she has tracked companies listed above, aim at least one project specifically at what those companies ask for, and set its target_company to that company name. Otherwise use "general" for target_company on every project.
+These are private builds, not public posts: no requirement to publish, announce, or share anywhere until she's actually in an interview room. Scope big enough to be genuinely impressive — up to a few weeks of real work is fine, this is not about speed.
+
+Return ONLY raw JSON, no markdown fences, no preamble, never use double-quote characters inside string values (use single quotes if quoting something), in this exact shape:
+{
+ "skill_gaps": [{"skill":"under 6 words","why":"under 20 words, tied to what postings actually ask for or systems-depth an interviewer would probe","action":"under 20 words, concrete not vague"}],
+ "side_projects": [{"effort":"1-2 weeks | 3-4 weeks | 4-6 weeks","project":"specific systems-level build with real infra/measurement, under 25 words","target_company":"a tracked company name this specifically targets, or general","skill_targeted":"which gap this closes, under 8 words","proof":"the specific artifact and numbers it produces, under 20 words","why_it_lands":"the exact moment in an interview this changes, under 20 words"}],
+ "cadence": "one short sentence, under 25 words"
+}
+Be terse everywhere — this has to fit a strict output budget. Exactly 3 skill_gaps and exactly 3 side_projects, no more. Be specific and concrete, no generic career advice, no mention of publishing or posting anywhere.`;
+
+const DEFAULT_PROMPT_WATCHSCAN = `Search the web right now for CURRENT, REAL, open job postings at these SPECIFIC named companies ONLY: {{WATCHLIST_COMPANIES}}. Check each company's own careers page first. For each company, find up to 2 currently open roles that are plausible fits — product/PM roles, or notably technical roles she could grow into. If a company genuinely has no open roles right now, skip it, do not invent one.
+
+Candidate context:
+{{CANDIDATE_PROFILE}}
+
+Fixed context: {{CANDIDATE_STANCE}}
+
+Score each role 0-100 using this rubric:
+{{RUBRIC}}
+
+CRITICAL on "url": it must be the literal URL returned by a search result, copied exactly. NEVER construct, guess, or pattern-match a URL yourself. If no verified direct posting link exists, use the company's actual careers/jobs listing page URL — also taken verbatim from a search result, never invented.
+
+Return ONLY raw JSON array, no markdown fences, no preamble, never use double-quote characters inside string values. Format:
+[{"title":"","company":"","location":"","url":"","jd_summary":"one or two sentence real summary of the actual JD","skills_required":[],"score":0,"gate":null}]
+Cap at 8 total results across all companies.`;
+
+const PROMPT_DEFS = [
+  { key: 'scan', label: 'scan — finds & scores jobs', default: DEFAULT_PROMPT_SCAN, placeholders: ['FOCUS_AREAS','KEYWORDS','LOCATION','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] },
+  { key: 'plan', label: 'six-month plan — skill gaps + side projects (one unified plan, tracked companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES'] },
+  { key: 'watchscan', label: 'watchlist — finds & scores roles at named companies', default: DEFAULT_PROMPT_WATCHSCAN, placeholders: ['WATCHLIST_COMPANIES','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] }
+];
+
+async function getPromptTemplate(key){
+  const def = PROMPT_DEFS.find(p => p.key === key);
+  const override = await settingGet('prompt_override_' + key, null);
+  return override || def.default;
+}
+
+function fillTemplate(template, vars){
+  let out = template;
+  Object.keys(vars).forEach(k=>{
+    out = out.split('{{' + k + '}}').join(vars[k]);
+  });
+  return out;
+}
+
+
+let currentResults = [];
+let savedJobs = {};
+let viewMode = 'all';
+
+document.querySelectorAll('#chips .chip .chip-label').forEach(label=>{
+  label.addEventListener('click', ()=>{
+    const chip = label.closest('.chip');
+    const tag = chip.dataset.tag;
+    if(activeTags.has(tag)){ activeTags.delete(tag); chip.classList.remove('active'); }
+    else { activeTags.add(tag); chip.classList.add('active'); }
+  });
+});
+document.querySelectorAll('#chips .chip .chip-x').forEach(x=>{
+  x.addEventListener('click', async ()=>{
+    const chip = x.closest('.chip');
+    const tag = chip.dataset.tag;
+    activeTags.delete(tag);
+    chip.remove();
+    const removed = await settingGet('removed_presets', []);
+    if(!removed.includes(tag)) removed.push(tag);
+    await settingSet('removed_presets', removed);
+  });
+});
+
+async function applyRemovedPresets(){
+  const removed = await settingGet('removed_presets', []);
+  removed.forEach(tag=>{
+    const chip = document.querySelector(`#chips .chip[data-tag="${tag}"]`);
+    if(chip){ activeTags.delete(tag); chip.remove(); }
+  });
+}
+
+async function loadCustomTags(){
+  customTags = await settingGet('custom_tags', []);
+  renderCustomTags();
+}
+async function saveCustomTags(){
+  await settingSet('custom_tags', customTags);
+}
+function renderCustomTags(){
+  const el = document.getElementById('customTagsWrap');
+  el.innerHTML = customTags.map((t,i)=>`<button class="chip active" data-idx="${i}">${escapeHtml(t)} ✕</button>`).join('');
+  el.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      customTags.splice(parseInt(btn.dataset.idx), 1);
+      await saveCustomTags();
+      renderCustomTags();
+    });
+  });
+}
+document.getElementById('addTagInput').addEventListener('keydown', async (e)=>{
+  if(e.key === 'Enter'){
+    const val = e.target.value.trim();
+    if(val && !customTags.includes(val)){
+      customTags.push(val);
+      await saveCustomTags();
+      renderCustomTags();
+    }
+    e.target.value = '';
+  }
+});
+
+document.getElementById('tabAll').onclick = ()=>{ viewMode='all'; render(); updateTabs(); };
+document.getElementById('tabSaved').onclick = ()=>{ viewMode='saved'; render(); updateTabs(); };
+function updateTabs(){
+  document.getElementById('tabAll').classList.toggle('active', viewMode==='all');
+  document.getElementById('tabSaved').classList.toggle('active', viewMode==='saved');
+}
+
+function statusEl(msg, scanning){
+  const s = document.getElementById('status');
+  s.textContent = msg;
+  s.className = 'status' + (scanning ? ' scanning' : '');
+}
+
+function focusAreasText(){
+  const map = {
+    healthcare: 'roles where her healthcare AI / clinical data / EHR integration experience (from her current job at an ambient scribing startup) would count as a strong transferable asset — but the target is NOT another healthcare role, it is using that experience as leverage into adjacent domains',
+    deeptech: 'robotics, drones, hardware, or deep tech startups — she has a hands-on electronics and embedded systems background and wants to move toward shop-floor hardware work eventually',
+    builder: 'early-stage, technically complex startups where the PM role is execution-heavy and hands-on, not process-heavy — she has explicitly turned down VC and pure-advisory roles because she wants to stay a builder',
+    civic: 'civic tech or public-interest tech products'
+  };
+  const preset = [...activeTags].map(t=>map[t]);
+  const custom = customTags.map(t=>`user-specified focus area: "${t}"`);
+  const all = [...preset, ...custom];
+  return all.length ? all.join('; ') : 'general AI product manager roles matching her background';
+}
+
+async function runScan(){
+  if(!requireApiKey()) return;
+  const kw = document.getElementById('kw').value.trim();
+  const loc = document.getElementById('loc').value.trim();
+  const btn = document.getElementById('scanBtn');
+  const signature = JSON.stringify({kw, loc, tags: [...activeTags].sort()});
+
+  const scanLog = await settingGet('scan_log', {});
+
+  const lastRun = scanLog[signature];
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  if(lastRun && (Date.now() - lastRun) < WEEK){
+    const daysAgo = Math.round((Date.now() - lastRun) / (24*60*60*1000) * 10) / 10;
+    const rescan = confirm(`You ran this exact search ${daysAgo} day(s) ago. Postings don't change fast — your stacked list already has whatever it found.\n\nOK = scan again anyway (costs credits)\nCancel = skip, just show what's already stacked`);
+    if(!rescan){
+      viewMode = 'all'; updateTabs(); render();
+      statusEl(`skipped — showing your full stacked list · no credits used`, false);
+      return;
+    }
+  }
+
+  btn.disabled = true;
+  statusEl('scanning the web', true);
+  document.getElementById('results').innerHTML = '';
+
+  const candidateContext = await buildCandidateContext();
+  const scanTemplate = await getPromptTemplate('scan');
+  const prompt = fillTemplate(scanTemplate, {
+    FOCUS_AREAS: focusAreasText(),
+    KEYWORDS: kw,
+    LOCATION: loc,
+    CANDIDATE_PROFILE: candidateContext,
+    CANDIDATE_STANCE: CANDIDATE_STANCE_TEXT,
+    RUBRIC: RUBRIC_TEXT
+  });
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: anthropicHeaders(),
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
+      })
+    });
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    let clean = textBlocks.replace(/```json|```/g,'').trim();
+    const firstBracket = clean.indexOf('[');
+    const lastBracket = clean.lastIndexOf(']');
+    if(firstBracket !== -1 && lastBracket !== -1){
+      clean = clean.slice(firstBracket, lastBracket+1);
+    }
+    let jobs;
+    try{
+      jobs = JSON.parse(clean);
+    }catch(parseErr){
+      console.warn('scan JSON malformed, recovering entry-by-entry:', parseErr.message);
+      jobs = splitTopLevelObjects(textBlocks);
+    }
+    const freshJobs = Array.isArray(jobs) ? jobs : [];
+    freshJobs.sort((a,b)=>(b.score||0)-(a.score||0));
+    const recoveredNote = freshJobs.length ? '' : ' (response was malformed and no entries could be recovered — try again)';
+    const scanId = await insertScan('scan', { keywords: kw, location: loc, tags: [...activeTags, ...customTags] });
+    currentResults = await mergeIntoStack(freshJobs, 'scan', scanId);
+    scanLog[signature] = Date.now();
+    await settingSet('scan_log', scanLog);
+    statusEl(`${freshJobs.length} found this scan · ${currentResults.length} total stacked${recoveredNote} · ${new Date().toLocaleTimeString()}`, false);
+  }catch(e){
+    console.error(e);
+    statusEl('scan failed — the search may have returned an unexpected format. try again.', false);
+  }
+  btn.disabled = false;
+  viewMode = 'all';
+  updateTabs();
+  render();
+}
+
+function render(){
+  const container = document.getElementById('results');
+  const list = viewMode === 'saved' ? Object.values(savedJobs) : currentResults;
+  if(list.length === 0){
+    container.innerHTML = `<div class="empty">${viewMode==='saved' ? 'nothing saved yet — star a result to keep it here' : 'no results yet — hit "run scan" above'}</div>`;
+    return;
+  }
+  container.innerHTML = list.map(job=>{
+    const key = job.company + '::' + job.title;
+    const isSaved = !!savedJobs[key];
+    const score = typeof job.score === 'number' ? job.score : null;
+    const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
+    const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
+    return `
+    <div class="card ${isSaved?'saved':''}">
+      <div class="card-top">
+        <div>
+          <h3>${escapeHtml(job.title||'')}</h3>
+          <div class="company">${escapeHtml(job.company||'')}</div>
+          <div class="meta">${escapeHtml(job.location||'')}${job.source ? ' · via ' + escapeHtml(job.source) : ''}</div>
+        </div>
+        <div class="card-actions">
+          <button class="star ${isSaved?'on':''}" data-key="${encodeURIComponent(key)}">${isSaved?'★':'☆'}</button>
+          ${job.url ? `<a class="apply" href="${escapeAttr(job.url)}" target="_blank" rel="noopener">view →</a>` : ''}
+          <button class="star broken-btn" data-key="${encodeURIComponent(key)}" title="mark link as dead / page not found">⚠✕</button>
+        </div>
+      </div>
+      ${score!==null ? `
+      <div class="meter-wrap">
+        <span class="meter-label">match</span>
+        <div class="meter"><div class="meter-fill" style="width:${score}%;background:${fillColor}"></div></div>
+        <span class="meter-score score-${band}">${score}</span>
+      </div>` : ''}
+      ${job.fit ? `<div class="fit"><b>fit:</b> ${escapeHtml(job.fit)}</div>` : ''}
+      ${job.gate ? `<div class="gate blocked">⚠ gate: ${escapeHtml(job.gate)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.star:not(.broken-btn)').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = decodeURIComponent(btn.dataset.key);
+      const job = list.find(j => (j.company+'::'+j.title) === key);
+      if(job) toggleSave(job);
+    });
+  });
+  container.querySelectorAll('.broken-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = decodeURIComponent(btn.dataset.key);
+      markLinkBroken(key);
+    });
+  });
+}
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+
+/* ---- resilient JSON recovery ----
+   LLM output occasionally has one bad field (unescaped quote, stray newline)
+   that breaks JSON.parse for the whole blob. These helpers walk the raw text
+   character-by-character, respecting string/escape state, so a single bad
+   entry gets skipped instead of losing everything. */
+function extractBalanced(text, startIdx, openCh, closeCh){
+  let depth = 0, inStr = false, esc = false;
+  for(let i=startIdx; i<text.length; i++){
+    const ch = text[i];
+    if(inStr){
+      if(esc) esc = false;
+      else if(ch === '\\') esc = true;
+      else if(ch === '"') inStr = false;
+      continue;
+    }
+    if(ch === '"'){ inStr = true; continue; }
+    if(ch === openCh) depth++;
+    else if(ch === closeCh){
+      depth--;
+      if(depth === 0) return text.slice(startIdx, i+1);
+    }
+  }
+  return null;
+}
+function splitTopLevelObjects(text){
+  const items = [];
+  let i = text.indexOf('{');
+  while(i !== -1){
+    const obj = extractBalanced(text, i, '{', '}');
+    if(!obj){ break; }
+    try{ items.push(JSON.parse(obj)); }
+    catch(e){ console.warn('skipped one malformed entry:', e.message); }
+    i = text.indexOf('{', i + obj.length);
+  }
+  return items;
+}
+function recoverKeyedArray(text, key){
+  const idx = text.indexOf('"' + key + '"');
+  if(idx === -1) return [];
+  const bracketIdx = text.indexOf('[', idx);
+  if(bracketIdx === -1) return [];
+  // don't require the array to actually close — a truncated response never gets a
+  // closing ']', so walk entries one at a time and keep whatever fully parsed
+  // before the cutoff, stopping cleanly at this array's own close if it exists.
+  const items = [];
+  let i = bracketIdx + 1;
+  while(i < text.length){
+    while(i < text.length && /[\s,]/.test(text[i])) i++;
+    if(i >= text.length) break;
+    if(text[i] === ']') break; // this array closed normally, we're done
+    if(text[i] !== '{') break; // anything unexpected — stop rather than misparse
+    const obj = extractBalanced(text, i, '{', '}');
+    if(!obj) break; // truncated mid-object — keep what we already salvaged
+    try{ items.push(JSON.parse(obj)); }
+    catch(e){ console.warn('skipped one malformed entry:', e.message); }
+    i += obj.length;
+  }
+  return items;
+}
+function recoverKeyedString(text, key){
+  const re = new RegExp('"' + key + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"');
+  const m = text.match(re);
+  return m ? m[1].replace(/\\"/g,'"').replace(/\\n/g,' ') : '';
+}
+
+document.getElementById('scanBtn').addEventListener('click', runScan);
+
+/* ---- nav ---- */
+const VIEWS = ['scan','watch','profile','plan','prompts','portfolio'];
+function switchView(view){
+  document.getElementById('viewScan').style.display = view==='scan' ? '' : 'none';
+  document.getElementById('viewWatchlist').style.display = view==='watch' ? '' : 'none';
+  document.getElementById('viewProfile').style.display = view==='profile' ? '' : 'none';
+  document.getElementById('viewPlan').style.display = view==='plan' ? '' : 'none';
+  document.getElementById('viewPrompts').style.display = view==='prompts' ? '' : 'none';
+  document.getElementById('viewPortfolio').style.display = view==='portfolio' ? '' : 'none';
+  document.getElementById('navScan').classList.toggle('active', view==='scan');
+  document.getElementById('navWatch').classList.toggle('active', view==='watch');
+  document.getElementById('navProfile').classList.toggle('active', view==='profile');
+  document.getElementById('navPlan').classList.toggle('active', view==='plan');
+  document.getElementById('navPrompts').classList.toggle('active', view==='prompts');
+  document.getElementById('navPortfolio').classList.toggle('active', view==='portfolio');
+  if(view === 'watch') renderWatchResults();
+  if(view === 'plan') renderGapBars();
+  if(view === 'prompts') renderPromptEditors();
+  if(view === 'portfolio') renderPortfolio();
+}
+document.getElementById('navScan').onclick = ()=>switchView('scan');
+document.getElementById('navWatch').onclick = ()=>switchView('watch');
+document.getElementById('navProfile').onclick = ()=>switchView('profile');
+document.getElementById('navPlan').onclick = ()=>switchView('plan');
+document.getElementById('navPrompts').onclick = ()=>switchView('prompts');
+document.getElementById('navPortfolio').onclick = ()=>switchView('portfolio');
+
+/* ---- profile: skills box ---- */
+const DEFAULT_SKILLS = `AI PM at a healthcare startup — ambient scribing, clinical documentation
+Shipped: EHR pipeline/summarizer self-service portal
+Shipped: practice settings dashboard with role-based access control
+Hands-on with Claude/LLMs — prompt architecture, config systems, builds working tools directly (not just specs)
+Research: CAISc 2026 paper on LLM tutoring failure modes (bare-assertion topology displacement) — submitted, peer reviewed
+Built: fully local edge voice AI on Raspberry Pi 5, Whisper + llama.cpp, found real Hindi tokenization inefficiency vs English
+Built: Bellandur Lake environmental tracker — satellite NDVI data, React dashboard, published
+Embedded systems: STM32 Nucleo, UART/GPIO/timers/debounce, CubeIDE + Arduino
+Circuit analysis: Thevenin/Norton with dependent sources, nodal analysis, noise margins, RC transients
+Studying Electronic Systems (BS, IIT Madras, part-time, 10/10 GPA) alongside full-time work
+Earlier: scaled Martian Wallet to 500K+ users; grew Kernel DAO to $300M+ TVL; co-founded Furrble (YC interview stage)
+Engineering background (integrated master's, Geophysical Technology, IIT Roorkee) — NOT a professional software developer, no shipped-code job history`;
+
+async function loadProfile(){
+  const box = document.getElementById('skillsBox');
+  box.value = await settingGet('skills_profile', DEFAULT_SKILLS);
+  let saveTimer;
+  box.addEventListener('input', ()=>{
+    clearTimeout(saveTimer);
+    document.getElementById('saveHint').textContent = 'saving…';
+    saveTimer = setTimeout(async ()=>{
+      await settingSet('skills_profile', box.value);
+      document.getElementById('saveHint').textContent = 'saved';
+    }, 700);
+  });
+}
+
+/* ---- profile: CV upload & extraction ---- */
+async function extractTextFromFile(file){
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(ext === 'txt'){
+    return await file.text();
+  }
+  if(ext === 'pdf'){
+    if(typeof pdfjsLib === 'undefined') throw new Error('pdf reader failed to load');
+    // deliberately not using a worker — sandboxed environments often can't spin one up cleanly,
+    // which makes pdf.js silently fall back to a "fake worker" and log a warning every time.
+    // resumes are small (a few pages), so running on the main thread directly avoids that
+    // entirely and is effectively instant either way.
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf, disableWorker: true }).promise;
+    let text = '';
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    return text;
+  }
+  if(ext === 'docx'){
+    if(typeof mammoth === 'undefined') throw new Error('docx reader failed to load');
+    const buf = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+    return result.value;
+  }
+  throw new Error('unsupported file type — use .pdf, .docx, or .txt');
+}
+
+function renderCvStatus(filename, charCount){
+  const nameEl = document.getElementById('cvFileName');
+  const removeBtn = document.getElementById('cvRemove');
+  if(filename){
+    nameEl.textContent = `${filename}${charCount ? ' · ' + charCount + ' chars extracted' : ''}`;
+    removeBtn.style.display = '';
+  }else{
+    nameEl.textContent = '';
+    removeBtn.style.display = 'none';
+  }
+}
+
+async function loadCvStatus(){
+  const filename = await settingGet('cv_filename', null);
+  const text = await settingGet('skills_profile', '');
+  const startIdx = text.indexOf('<!-- CV_EXTRACTED_START -->');
+  const endIdx = text.indexOf('<!-- CV_EXTRACTED_END -->');
+  const hasCvBlock = startIdx !== -1 && endIdx !== -1;
+  if(filename && hasCvBlock){
+    renderCvStatus(filename, endIdx - startIdx);
+  }
+}
+
+const CV_START_MARKER = '<!-- CV_EXTRACTED_START -->';
+const CV_END_MARKER = '<!-- CV_EXTRACTED_END -->';
+
+function stripCvBlock(text){
+  const startIdx = text.indexOf(CV_START_MARKER);
+  const endIdx = text.indexOf(CV_END_MARKER);
+  if(startIdx === -1 || endIdx === -1) return text;
+  return (text.slice(0, startIdx) + text.slice(endIdx + CV_END_MARKER.length)).trim();
+}
+
+document.getElementById('cvUpload').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl2 = document.getElementById('cvStatus');
+  statusEl2.textContent = `reading ${file.name}…`;
+  try{
+    const raw = await extractTextFromFile(file);
+    const trimmed = raw.trim().slice(0, 20000);
+    if(!trimmed) throw new Error('no readable text found in that file');
+
+    // actually ingest it into "what you've got" — visible, editable, one source of truth —
+    // rather than stashing it in a side-channel only the prompts ever see.
+    const box = document.getElementById('skillsBox');
+    const withoutOldCv = stripCvBlock(box.value || '');
+    box.value = `${withoutOldCv}\n\n${CV_START_MARKER}\n## Extracted from uploaded CV — ${file.name} (edit or trim freely, this is just a starting dump)\n${trimmed}\n${CV_END_MARKER}`.trim();
+    await settingSet('skills_profile', box.value);
+    await settingSet('cv_filename', file.name);
+    renderCvStatus(file.name, trimmed.length);
+    statusEl2.textContent = `loaded and added to "what you've got" above — trim it down if it's noisy`;
+  }catch(err){
+    console.error(err);
+    statusEl2.textContent = `couldn't read that file: ${err.message}`;
+  }
+});
+
+document.getElementById('cvRemove').addEventListener('click', async ()=>{
+  const box = document.getElementById('skillsBox');
+  box.value = stripCvBlock(box.value || '');
+  await settingSet('skills_profile', box.value);
+  await settingDelete('cv_filename');
+  renderCvStatus(null);
+  document.getElementById('cvStatus').textContent = 'removed from "what you\'ve got"';
+  document.getElementById('cvUpload').value = '';
+});
+
+async function buildCandidateContext(){
+  try{
+    return document.getElementById('skillsBox').value || DEFAULT_SKILLS;
+  }catch(e){ return DEFAULT_SKILLS; }
+}
+
+/* ---- profile: skill tally from real scans (aggregated live from skill_signal table) ---- */
+async function renderGapBars(){
+  const el = document.getElementById('gapBars');
+  const { tally, postingsAnalyzed } = await getSkillTally();
+  document.getElementById('scanTally').textContent = `${postingsAnalyzed} posting${postingsAnalyzed===1?'':'s'} analyzed so far.`;
+  const entries = Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  if(entries.length===0){
+    el.innerHTML = `<div class="empty">run a few scans first — this fills in from real postings, not guesses.</div>`;
+    return;
+  }
+  const max = entries[0][1];
+  el.innerHTML = entries.map(([skill,count])=>`
+    <div class="gap-row">
+      <div class="gap-name">${escapeHtml(skill)}</div>
+      <div class="meter"><div class="meter-fill" style="width:${(count/max*100).toFixed(0)}%;background:var(--amber)"></div></div>
+      <div class="gap-count">${count}×</div>
+    </div>`).join('');
+}
+
+/* ---- profile: generate 6-month plan ---- */
+document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
+  if(!requireApiKey()) return;
+  const btn = document.getElementById('genPlanBtn');
+  const planStatus = document.getElementById('planStatus');
+  const planResults = document.getElementById('planResults');
+  btn.disabled = true;
+  planStatus.textContent = 'thinking this through'; planStatus.className = 'status scanning';
+  planResults.innerHTML = '';
+
+  const skills = await buildCandidateContext();
+  const { tally } = await getSkillTally();
+  const topAsks = Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([s,c])=>`${s} (seen ${c}x)`).join(', ') || 'no scan data yet — using general market knowledge instead';
+
+  const planTemplate = await getPromptTemplate('plan');
+  const prompt = fillTemplate(planTemplate, {
+    CANDIDATE_PROFILE: skills,
+    MARKET_TALLY: topAsks,
+    CANDIDATE_STANCE: CANDIDATE_STANCE_TEXT,
+    WATCHLIST_COMPANIES: watchCompanies.length ? watchCompanies.join(', ') : 'none tracked yet'
+  });
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: anthropicHeaders(),
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    let clean = textBlocks.replace(/```json|```/g,'').trim();
+    const firstBrace = clean.indexOf('{');
+    const lastBrace = clean.lastIndexOf('}');
+    if(firstBrace !== -1 && lastBrace !== -1) clean = clean.slice(firstBrace, lastBrace+1);
+    let plan;
+    let recovered = false;
+    try{
+      plan = JSON.parse(clean);
+    }catch(parseErr){
+      console.warn('plan JSON malformed, recovering field-by-field:', parseErr.message);
+      recovered = true;
+      plan = {
+        skill_gaps: recoverKeyedArray(textBlocks, 'skill_gaps'),
+        side_projects: recoverKeyedArray(textBlocks, 'side_projects'),
+        cadence: recoverKeyedString(textBlocks, 'cadence')
+      };
+    }
+    await savePlan(plan, tally);
+    renderPlan(plan);
+    const note = recovered ? ' · response ran long and got trimmed — regenerate if anything looks missing' : '';
+    planStatus.textContent = `generated · ${new Date().toLocaleTimeString()}${note}`; planStatus.className = 'status';
+  }catch(e){
+    console.error(e);
+    planStatus.textContent = 'plan generation failed — try again'; planStatus.className = 'status';
+  }
+  btn.disabled = false;
+});
+
+/* ---- GitHub: connect, build repo + README, track portfolio ---- */
+async function getGithubCreds(){
+  let creds = { username: '', token: '' };
+  try{
+    const res = await window.storage.get('github_creds', false);
+    if(res && res.value) creds = JSON.parse(res.value);
+  }catch(e){}
+  return creds;
+}
+
+document.getElementById('ghSaveBtn').addEventListener('click', async ()=>{
+  const username = document.getElementById('ghUsername').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  const status = document.getElementById('ghStatus');
+  if(!username || !token){ status.textContent = 'need both fields'; return; }
+  try{
+    await window.storage.set('github_creds', JSON.stringify({ username, token }), false);
+    status.textContent = `connected as ${username}`;
+    document.getElementById('ghToken').value = '';
+  }catch(e){ status.textContent = 'could not save'; }
+});
+
+async function loadGithubStatus(){
+  const creds = await getGithubCreds();
+  if(creds.username){
+    document.getElementById('ghUsername').value = creds.username;
+    document.getElementById('ghStatus').textContent = `connected as ${creds.username}`;
+  }
+}
+
+function slugify(str){
+  return (str||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,80) || 'project';
+}
+
+function buildReadmeContent(project){
+  return `# ${project.project||'Untitled project'}
+
+**Effort estimate:** ${project.effort || 'unscoped'}
+**Targets skill gap:** ${project.skill_targeted || '—'}
+${project.target_company ? `**Aimed at:** ${project.target_company}\n` : ''}
+## What this proves
+${project.proof || '—'}
+${project.why_it_lands ? `\n## Why it lands in an interview\n${project.why_it_lands}\n` : ''}
+## Steps to follow
+
+- [ ] Define the exact scope and one measurable success metric before writing any code
+- [ ] Set up the environment/infra this needs (containers, hardware access, test data)
+- [ ] Build the core piece — the part that's actually hard, not the scaffolding around it
+- [ ] Instrument it — capture real numbers (latency, cost, throughput, failure rate, whatever applies)
+- [ ] Push it to failure on purpose once, note what breaks and why
+- [ ] Write the before/after or tradeoff curve into this README, with actual numbers
+- [ ] Keep this private until it's actually useful in an interview
+
+---
+*Generated by job radar — private proof-of-work tracker.*
+`;
+}
+
+async function buildProjectRepo(project, btnEl, linkEl){
+  const creds = await getGithubCreds();
+  if(!creds.username || !creds.token){
+    alert('Connect GitHub first — scroll up to "connect GitHub" and save your username + token.');
+    return;
+  }
+  const repoName = slugify(project.project);
+  if(!confirm(`Create a new PRIVATE GitHub repo "${repoName}" under ${creds.username}, with a starter README?`)) return;
+
+  btnEl.disabled = true;
+  btnEl.textContent = 'creating…';
+  try{
+    const createRes = await fetch('https://api.github.com/user/repos', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${creds.token}`, 'Accept': 'application/vnd.github+json' },
+      body: JSON.stringify({ name: repoName, private: true, description: (project.project||'').slice(0,350) })
+    });
+    if(!createRes.ok){
+      const errBody = await createRes.json().catch(()=>({}));
+      throw new Error(errBody.message || `GitHub returned ${createRes.status}`);
+    }
+    const repoData = await createRes.json();
+
+    const readme = buildReadmeContent(project);
+    const contentB64 = btoa(unescape(encodeURIComponent(readme)));
+    const readmeRes = await fetch(`https://api.github.com/repos/${creds.username}/${repoName}/contents/README.md`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${creds.token}`, 'Accept': 'application/vnd.github+json' },
+      body: JSON.stringify({ message: 'initial README from job radar', content: contentB64 })
+    });
+    if(!readmeRes.ok){
+      const errBody = await readmeRes.json().catch(()=>({}));
+      console.warn('repo created but README failed:', errBody.message);
+    }
+
+    await addPortfolioRepo(project.project, repoData.html_url);
+
+    btnEl.style.display = 'none';
+    linkEl.innerHTML = `<a href="${repoData.html_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>`;
+    renderPortfolio();
+  }catch(err){
+    console.error(err);
+    btnEl.disabled = false;
+    btnEl.textContent = '▸ build this';
+    alert('Could not create the repo: ' + err.message);
+  }
+}
+
+async function attachBuildButtons(container, projects){
+  const portfolio = await getPortfolio();
+  const bySlug = {};
+  portfolio.forEach(p => { bySlug[slugify(p.project_title)] = p; });
+  container.querySelectorAll('.build-repo-btn').forEach(btn=>{
+    const idx = parseInt(btn.dataset.idx);
+    const project = projects[idx];
+    if(!project) return;
+    const slug = slugify(project.project);
+    const linkEl = container.querySelector(`.repo-link[data-idx="${idx}"]`);
+    if(bySlug[slug]){
+      btn.style.display = 'none';
+      linkEl.innerHTML = `<a href="${bySlug[slug].repo_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>`;
+    }else{
+      btn.addEventListener('click', ()=> buildProjectRepo(project, btn, linkEl));
+    }
+  });
+}
+
+async function renderPortfolio(){
+  const el = document.getElementById('portfolioList');
+  const entries = await getPortfolio();
+  if(!entries.length){
+    el.innerHTML = `<div class="empty">nothing built yet — hit "build this" on a project below</div>`;
+    return;
+  }
+  el.innerHTML = entries.map(e=>`
+    <div class="source-row"><span class="source-dot linked"></span><a href="${e.repo_url}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(e.project_title)}</a></div>
+  `).join('');
+}
+
+function renderPlan(plan){
+  const el = document.getElementById('planResults');
+  let html = '';
+  if(plan.cadence){
+    html += `<div class="cadence-note">⏱ ${escapeHtml(plan.cadence)}</div>`;
+  }
+  if(Array.isArray(plan.skill_gaps) && plan.skill_gaps.length){
+    html += `<h2 style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:0 0 10px;">skill gaps to close</h2>`;
+    html += plan.skill_gaps.map(g=>`
+      <div class="plan-card">
+        <span class="tag">build</span>
+        <h4>${escapeHtml(g.skill||'')}</h4>
+        <p><b>why:</b> ${escapeHtml(g.why||'')}</p>
+        <p style="margin-top:6px"><b>do this:</b> ${escapeHtml(g.action||'')}</p>
+      </div>`).join('');
+  }
+  if(Array.isArray(plan.side_projects) && plan.side_projects.length){
+    html += `<h2 style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:18px 0 10px;">side projects — private proof of work</h2>`;
+    html += plan.side_projects.map((p,idx)=>`
+      <div class="plan-card content-type">
+        <span class="tag">${escapeHtml(p.effort||'project')}${p.target_company && p.target_company.toLowerCase()!=='general' ? ' · ' + escapeHtml(p.target_company) : ''}</span>
+        <h4>${escapeHtml(p.project||'')}</h4>
+        <p><b>closes:</b> ${escapeHtml(p.skill_targeted||'')}</p>
+        <p style="margin-top:6px"><b>proof:</b> ${escapeHtml(p.proof||'')}</p>
+        ${p.why_it_lands ? `<p style="margin-top:6px"><b>why it lands:</b> ${escapeHtml(p.why_it_lands)}</p>` : ''}
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;">
+          <button class="star build-repo-btn" data-idx="${idx}" style="width:auto;padding:0 12px;">▸ build this</button>
+          <span class="repo-link" data-idx="${idx}"></span>
+        </div>
+      </div>`).join('');
+  }
+  el.innerHTML = html || `<div class="empty">plan came back empty — try generating again</div>`;
+  if(Array.isArray(plan.side_projects)) attachBuildButtons(el, plan.side_projects);
+}
+
+async function loadStoredPlan(){
+  const plan = await getLatestPlan();
+  if(plan) renderPlan({ skill_gaps: plan.skill_gaps, side_projects: plan.side_projects, cadence: plan.cadence });
+}
+
+/* ================= watchlist ================= */
+let watchCompanies = [];
+
+async function loadWatchCompanies(){
+  watchCompanies = await getWatchCompanies();
+  renderWatchChips();
+}
+function renderWatchChips(){
+  const el = document.getElementById('watchChips');
+  el.innerHTML = watchCompanies.map((c,i)=>`<button class="chip active" data-idx="${i}">${escapeHtml(c)} ✕</button>`).join('');
+  el.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.dataset.idx);
+      const name = watchCompanies[idx];
+      watchCompanies.splice(idx, 1);
+      renderWatchChips();
+      await removeWatchCompany(name);
+    });
+  });
+}
+document.getElementById('watchInput').addEventListener('keydown', async (e)=>{
+  if(e.key === 'Enter'){
+    const val = e.target.value.trim();
+    if(val && !watchCompanies.includes(val)){
+      watchCompanies.push(val);
+      renderWatchChips();
+      await addWatchCompany(val);
+    }
+    e.target.value = '';
+  }
+});
+
+function watchStatusEl(msg, scanning){
+  const s = document.getElementById('watchStatus');
+  s.textContent = msg;
+  s.className = 'status' + (scanning ? ' scanning' : '');
+}
+
+function renderWatchResults(){
+  const container = document.getElementById('watchResults');
+  const normalized = watchCompanies.map(c=>c.toLowerCase().trim());
+  const jobs = currentResults
+    .filter(job => normalized.includes((job.company||'').toLowerCase().trim()))
+    .sort((a,b)=>(b.score||0)-(a.score||0));
+  if(!jobs.length){
+    container.innerHTML = `<div class="empty">${watchCompanies.length ? 'no tracked roles found yet — hit "check open roles," or these companies just haven\'t shown up in any scan yet' : 'add companies above and hit "check open roles"'}</div>`;
+    return;
+  }
+  container.innerHTML = jobs.map(job=>{
+    const score = typeof job.score === 'number' ? job.score : null;
+    const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
+    const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
+    const key = (job.company||'') + '::' + (job.title||'');
+    return `
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <h3>${escapeHtml(job.title||'')}</h3>
+          <div class="company">${escapeHtml(job.company||'')}</div>
+          <div class="meta">${escapeHtml(job.location||'')}</div>
+        </div>
+        <div class="card-actions">
+          ${job.url ? `<a class="apply" href="${escapeAttr(job.url)}" target="_blank" rel="noopener">view →</a>` : ''}
+          <button class="star broken-btn" data-key="${encodeURIComponent(key)}" title="mark link as dead / page not found">⚠✕</button>
+        </div>
+      </div>
+      ${score!==null ? `
+      <div class="meter-wrap">
+        <span class="meter-label">match</span>
+        <div class="meter"><div class="meter-fill" style="width:${score}%;background:${fillColor}"></div></div>
+        <span class="meter-score score-${band}">${score}</span>
+      </div>` : ''}
+      ${job.jd_summary ? `<div class="fit"><b>role:</b> ${escapeHtml(job.jd_summary)}</div>` : (job.fit ? `<div class="fit"><b>fit:</b> ${escapeHtml(job.fit)}</div>` : '')}
+      ${job.gate ? `<div class="gate blocked">⚠ gate: ${escapeHtml(job.gate)}</div>` : ''}
+    </div>`;
+  }).join('');
+  container.querySelectorAll('.broken-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = decodeURIComponent(btn.dataset.key);
+      markLinkBroken(key);
+    });
+  });
+}
+
+document.getElementById('watchScanBtn').addEventListener('click', async ()=>{
+  if(!requireApiKey()) return;
+  const btn = document.getElementById('watchScanBtn');
+  if(watchCompanies.length === 0){
+    watchStatusEl('add at least one company first', false);
+    return;
+  }
+  const signature = JSON.stringify([...watchCompanies].sort());
+  const scanLog = await settingGet('watchlist_scan_log', {});
+  const lastRun = scanLog[signature];
+  const DAY = 24 * 60 * 60 * 1000;
+  if(lastRun && (Date.now() - lastRun) < DAY){
+    const hoursAgo = Math.round((Date.now() - lastRun) / (60*60*1000));
+    const rescan = confirm(`You checked this exact company list ${hoursAgo}h ago.\n\nOK = check again anyway (costs credits)\nCancel = skip, show what's already tracked`);
+    if(!rescan){
+      watchStatusEl(`skipped — showing what's already tracked · no credits used`, false);
+      return;
+    }
+  }
+
+  btn.disabled = true;
+  watchStatusEl(`checking ${watchCompanies.length} companies`, true);
+
+  const candidateContext = await buildCandidateContext();
+  const watchScanTemplate = await getPromptTemplate('watchscan');
+  const prompt = fillTemplate(watchScanTemplate, {
+    WATCHLIST_COMPANIES: watchCompanies.join(', '),
+    CANDIDATE_PROFILE: candidateContext,
+    CANDIDATE_STANCE: CANDIDATE_STANCE_TEXT,
+    RUBRIC: RUBRIC_TEXT
+  });
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: anthropicHeaders(),
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{ role: "user", content: prompt }],
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: Math.min(watchCompanies.length + 2, 8) }]
+      })
+    });
+    const data = await response.json();
+    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    let clean = textBlocks.replace(/```json|```/g,'').trim();
+    const firstBracket = clean.indexOf('[');
+    const lastBracket = clean.lastIndexOf(']');
+    if(firstBracket !== -1 && lastBracket !== -1) clean = clean.slice(firstBracket, lastBracket+1);
+    let jobs;
+    try{
+      jobs = JSON.parse(clean);
+    }catch(parseErr){
+      console.warn('watchlist JSON malformed, recovering entry-by-entry:', parseErr.message);
+      jobs = splitTopLevelObjects(textBlocks);
+    }
+    const freshJobs = Array.isArray(jobs) ? jobs : [];
+    const scanId = await insertScan('watchlist', { companies: watchCompanies });
+    currentResults = await mergeIntoStack(freshJobs, 'watchlist', scanId);
+    scanLog[signature] = Date.now();
+    await settingSet('watchlist_scan_log', scanLog);
+    watchStatusEl(`${freshJobs.length} roles found this check · ${new Date().toLocaleTimeString()}`, false);
+    renderWatchResults();
+  }catch(e){
+    console.error(e);
+    watchStatusEl('check failed — the search may have returned an unexpected format, try again', false);
+  }
+  btn.disabled = false;
+});
+
+/* ---- prompts editor ---- */
+async function renderPromptEditors(){
+  const el = document.getElementById('promptEditors');
+  el.innerHTML = '';
+  for(const def of PROMPT_DEFS){
+    const current = await getPromptTemplate(def.key);
+    const isCustom = current !== def.default;
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.innerHTML = `
+      <h2>${escapeHtml(def.label)} ${isCustom ? '<span style="color:var(--amber);font-size:11px;">· customized</span>' : ''}</h2>
+      <div class="desc">available placeholders: ${def.placeholders.map(p=>`<code>{{${p}}}</code>`).join(', ')} — these get filled in automatically, keep them intact.</div>
+      <textarea data-key="${def.key}" style="min-height:280px;font-size:11px;">${escapeHtml(current)}</textarea>
+      <div class="actions" style="margin-top:10px;">
+        <button class="scan save-prompt-btn" data-key="${def.key}">▸ save</button>
+        <button class="star reset-prompt-btn" data-key="${def.key}" style="width:auto;padding:0 12px;">reset to default</button>
+        <span class="save-hint" data-status="${def.key}"></span>
+      </div>
+    `;
+    el.appendChild(panel);
+  }
+  el.querySelectorAll('.save-prompt-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const key = btn.dataset.key;
+      const textarea = el.querySelector(`textarea[data-key="${key}"]`);
+      const status = el.querySelector(`[data-status="${key}"]`);
+      const def = PROMPT_DEFS.find(p=>p.key===key);
+      const missing = def.placeholders.filter(p => !textarea.value.includes('{{'+p+'}}'));
+      if(missing.length){
+        if(!confirm(`Heads up: this is missing ${missing.map(m=>'{{'+m+'}}').join(', ')} — that data just won't get included. Save anyway?`)) return;
+      }
+      await settingSet('prompt_override_' + key, textarea.value);
+      status.textContent = 'saved — takes effect next run';
+    });
+  });
+  el.querySelectorAll('.reset-prompt-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const key = btn.dataset.key;
+      if(!confirm('Reset this prompt to the built-in default? Your edits will be lost.')) return;
+      await settingDelete('prompt_override_' + key);
+      renderPromptEditors();
+    });
+  });
+}
+
+async function initLoad(){
+  await loadSaved();
+  await loadStack();
+  await loadWatchCompanies();
+  renderWatchResults();
+}
+
+/* ================= auth gate ================= */
+async function showApp(){
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('appShell').style.display = '';
+  await initLoad();
+  loadCustomTags();
+  applyRemovedPresets();
+  loadProfile();
+  loadCvStatus();
+  loadGithubStatus();
+  renderPortfolio();
+  loadStoredPlan();
+  loadApiKeyStatus();
+}
+function showLoginGate(){
+  document.getElementById('authGate').style.display = '';
+  document.getElementById('appShell').style.display = 'none';
+}
+
+document.getElementById('authSendBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('authEmail').value.trim();
+  const status = document.getElementById('authStatus');
+  if(!email){ status.textContent = 'enter your email first'; return; }
+  status.textContent = 'sending…';
+  const { error } = await db.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
+  status.textContent = error ? `couldn't send: ${error.message}` : `check ${email} for a sign-in link`;
+});
+
+document.getElementById('signOutBtn').addEventListener('click', async ()=>{
+  await db.auth.signOut();
+});
+
+async function initAuth(){
+  const { data: { session } } = await db.auth.getSession();
+  if(session){
+    currentUserId = session.user.id;
+    showApp();
+  }else{
+    showLoginGate();
+  }
+  db.auth.onAuthStateChange((event, session)=>{
+    if(session && session.user.id !== currentUserId){
+      currentUserId = session.user.id;
+      showApp();
+    }else if(!session){
+      currentUserId = null;
+      showLoginGate();
+    }
+  });
+}
+initAuth();
+</script>
+</body>
+</html>
