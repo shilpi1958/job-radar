@@ -13,11 +13,13 @@ concrete technical side projects, and turns those projects into real GitHub repo
   — CV, skills profile, scores, plans, watchlist, portfolio — is private per user via
   Postgres row-level security (`auth.uid() = user_id`).
 - **Auth:** Supabase Auth, magic-link email. No passwords.
-- **AI calls:** BYOK (bring your own key). Each user pastes their own Anthropic API key
-  (console.anthropic.com), stored in `localStorage` only — never touches Supabase, never
-  touches any server this app runs. Calls go straight from the user's browser to
-  `api.anthropic.com` using the `anthropic-dangerous-direct-browser-access: true` header
-  (Anthropic's documented pattern for exactly this use case).
+- **AI calls:** BYOK (bring your own key). Each user can paste an Anthropic and/or
+  OpenAI API key in Profile, pick the active provider from a dropdown, and keys stay in
+  `localStorage` only — never written to Supabase tables. Claude calls go straight from
+  the browser to `api.anthropic.com` (`anthropic-dangerous-direct-browser-access`).
+  OpenAI blocks browser CORS, so those calls go through the auth-gated Edge Function
+  `openai-proxy`, which forwards the user's key from the `X-User-OpenAI-Key` header
+  without storing it.
 - **GitHub integration:** each user connects their own GitHub Personal Access Token
   (repo scope only), also `localStorage`-only, used to spin up a real private repo +
   README when they click "build this" on a generated side project.
@@ -33,6 +35,16 @@ concrete technical side projects, and turns those projects into real GitHub repo
 5. Auth → Email templates: default magic-link template works out of the box. Free tier
    rate-limits outbound email (a handful per hour) — fine for testing, needs a custom
    SMTP provider wired into Supabase before real traffic.
+6. Deploy the OpenAI proxy (needed only if anyone will use the OpenAI provider):
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <your-project-ref>
+   npx supabase functions deploy openai-proxy
+   ```
+
+   The function lives at `supabase/functions/openai-proxy/`. It requires a logged-in
+   user JWT and does not store OpenAI keys.
 
 ## Deploying
 

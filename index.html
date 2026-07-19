@@ -92,12 +92,13 @@
   .row{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
   .field{flex:1;min-width:200px;}
   label{display:block;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-  input[type=text]{
+  input[type=text], input[type=password], select{
     width:100%;background:#0b0e0c;border:1px solid var(--panel-line);
     color:var(--text);padding:9px 10px;font-family:inherit;font-size:13px;
     border-radius:3px;outline:none;
   }
-  input[type=text]:focus{border-color:var(--phosphor-dim);}
+  input[type=text]:focus, input[type=password]:focus, select:focus{border-color:var(--phosphor-dim);}
+  select{cursor:pointer;}
   .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
   .chip{
     display:inline-flex;align-items:center;gap:7px;
@@ -349,19 +350,40 @@
 
   <div id="viewProfile" style="display:none">
     <div class="panel" style="border-color:var(--phosphor-dim);">
-      <h2>▸ connect your Claude API key</h2>
+      <h2>▸ connect your AI keys</h2>
       <div class="desc">
-        required — nothing that calls the model works without this. get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a> (separate from any claude.ai subscription — this is pay-per-use API billing, you'll need a payment method there).
-        stored only in <b>this browser</b>, never sent to any server this app runs — every scan and plan call goes straight from your browser to Anthropic.
+        required — nothing that calls the model works without a key for the provider you pick below.
+        both keys are stored only in <b>this browser</b>, never written to Supabase.
+        Claude calls go straight to Anthropic; OpenAI calls go browser → our auth-gated proxy → OpenAI (your key is sent in the request header only, not stored on the server).
+      </div>
+      <div class="row">
+        <div class="field" style="max-width:220px;">
+          <label for="llmProvider">provider</label>
+          <select id="llmProvider">
+            <option value="claude">Claude (Anthropic)</option>
+            <option value="openai">OpenAI</option>
+          </select>
+        </div>
       </div>
       <div class="row">
         <div class="field">
+          <label for="apiKeyInput">Claude API key — <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a></label>
           <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
         </div>
       </div>
-      <div class="actions">
-        <button class="scan" id="apiKeySaveBtn">▸ save</button>
+      <div class="actions" style="margin-bottom:14px;">
+        <button class="scan" id="apiKeySaveBtn">▸ save Claude key</button>
         <span id="apiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="openaiKeyInput">OpenAI API key — <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--phosphor);">platform.openai.com</a></label>
+          <input type="password" id="openaiKeyInput" placeholder="sk-...">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="scan" id="openaiKeySaveBtn">▸ save OpenAI key</button>
+        <span id="openaiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
       </div>
     </div>
 
@@ -682,26 +704,85 @@ async function getLatestPlan(){
   }catch(e){ return null; }
 }
 
-/* ---- user's own Claude API key: deliberately plain localStorage, not Supabase, not
-   window.storage — this must never leave the visitor's own browser. Each person's key
-   goes straight from their browser to Anthropic; this app's servers never see it. */
-function getApiKey(){ return localStorage.getItem('anthropic_api_key') || ''; }
+/* ---- BYOK API keys: plain localStorage only — never Supabase. Claude talks
+   straight to Anthropic from the browser; OpenAI goes via an auth-gated Edge
+   Function proxy (OpenAI blocks browser CORS) with the user's key in a header. */
+function getProvider(){ return localStorage.getItem('llm_provider') || 'claude'; }
+function setProvider(p){ localStorage.setItem('llm_provider', p === 'openai' ? 'openai' : 'claude'); }
+function getAnthropicKey(){ return localStorage.getItem('anthropic_api_key') || ''; }
+function getOpenAIKey(){ return localStorage.getItem('openai_api_key') || ''; }
 function requireApiKey(){
-  const key = getApiKey();
+  const provider = getProvider();
+  const key = provider === 'openai' ? getOpenAIKey() : getAnthropicKey();
   if(!key){
-    alert('Add your Claude API key first — go to Profile → "connect your Claude API key."');
+    const label = provider === 'openai' ? 'OpenAI' : 'Claude';
+    alert(`Add your ${label} API key first — go to Profile → "connect your AI keys."`);
     return null;
   }
-  return key;
+  return { provider, key };
 }
-function anthropicHeaders(){
-  return {
-    'Content-Type': 'application/json',
-    'x-api-key': getApiKey(),
-    'anthropic-version': '2023-06-01',
-    'anthropic-dangerous-direct-browser-access': 'true'
+async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchMaxUses = 3 }){
+  const auth = requireApiKey();
+  if(!auth) throw new Error('missing API key');
+
+  if(auth.provider === 'openai'){
+    const { data: { session } } = await db.auth.getSession();
+    if(!session) throw new Error('sign in required for OpenAI calls');
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_KEY,
+        'X-User-OpenAI-Key': auth.key
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json().catch(()=>({}));
+    if(!response.ok){
+      const msg = data.error?.message || data.msg || data.message || `OpenAI proxy HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+    const text = (data.choices || []).map(c => c.message?.content || '').join('\n').trim();
+    if(!text) throw new Error('OpenAI returned an empty response');
+    return text;
+  }
+
+  const body = {
+    model: 'claude-sonnet-4-6',
+    max_tokens: maxTokens,
+    messages: [{ role: 'user', content: prompt }]
   };
+  if(webSearch){
+    body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: webSearchMaxUses }];
+  }
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': auth.key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(()=>({}));
+  if(!response.ok){
+    const msg = data.error?.message || data.message || `Anthropic HTTP ${response.status}`;
+    throw new Error(msg);
+  }
+  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+  if(!text) throw new Error('Claude returned an empty response');
+  return text;
 }
+document.getElementById('llmProvider').addEventListener('change', (e)=>{
+  setProvider(e.target.value);
+  loadApiKeyStatus();
+});
 document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('apiKeyInput').value.trim();
   const status = document.getElementById('apiKeyStatus');
@@ -710,9 +791,20 @@ document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('apiKeyInput').value = '';
   status.textContent = 'saved — stored in this browser only';
 });
+document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('openaiKeyInput').value.trim();
+  const status = document.getElementById('openaiKeyStatus');
+  if(!val){ status.textContent = 'paste a key first'; return; }
+  localStorage.setItem('openai_api_key', val);
+  document.getElementById('openaiKeyInput').value = '';
+  status.textContent = 'saved — stored in this browser only';
+});
 function loadApiKeyStatus(){
-  const status = document.getElementById('apiKeyStatus');
-  status.textContent = getApiKey() ? 'connected — stored in this browser' : 'not connected yet';
+  document.getElementById('llmProvider').value = getProvider();
+  document.getElementById('apiKeyStatus').textContent =
+    getAnthropicKey() ? 'connected — stored in this browser' : 'not connected yet';
+  document.getElementById('openaiKeyStatus').textContent =
+    getOpenAIKey() ? 'connected — stored in this browser' : 'not connected yet';
 }
 
 const activeTags = new Set(['deeptech','builder']);
@@ -965,18 +1057,7 @@ async function runScan(){
   });
 
   try{
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: anthropicHeaders(),
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }],
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
-      })
-    });
-    const data = await response.json();
-    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const textBlocks = await callLLM({ prompt, maxTokens: 1000, webSearch: true, webSearchMaxUses: 3 });
     let clean = textBlocks.replace(/```json|```/g,'').trim();
     const firstBracket = clean.indexOf('[');
     const lastBracket = clean.lastIndexOf(']');
@@ -1333,17 +1414,7 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   });
 
   try{
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: anthropicHeaders(),
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }]
-      })
-    });
-    const data = await response.json();
-    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const textBlocks = await callLLM({ prompt, maxTokens: 1000 });
     let clean = textBlocks.replace(/```json|```/g,'').trim();
     const firstBrace = clean.indexOf('{');
     const lastBrace = clean.lastIndexOf('}');
@@ -1666,18 +1737,12 @@ document.getElementById('watchScanBtn').addEventListener('click', async ()=>{
   });
 
   try{
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: anthropicHeaders(),
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
-        messages: [{ role: "user", content: prompt }],
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: Math.min(watchCompanies.length + 2, 8) }]
-      })
+    const textBlocks = await callLLM({
+      prompt,
+      maxTokens: 1000,
+      webSearch: true,
+      webSearchMaxUses: Math.min(watchCompanies.length + 2, 8)
     });
-    const data = await response.json();
-    const textBlocks = (data.content || []).filter(b=>b.type==='text').map(b=>b.text).join('\n');
     let clean = textBlocks.replace(/```json|```/g,'').trim();
     const firstBracket = clean.indexOf('[');
     const lastBracket = clean.lastIndexOf(']');
