@@ -254,8 +254,8 @@
     <button id="navWatch">★ watchlist</button>
     <button id="navProfile">◆ profile</button>
     <button id="navPlan">⏱ six-month plan</button>
-    <button id="navPrompts">✎ prompts</button>
     <button id="navPortfolio">◈ portfolio</button>
+    <button id="navSettings">⚙ settings</button>
     <div style="flex:1;"></div>
     <button id="signOutBtn" style="color:var(--text-dim);font-size:11px;">↩ sign out</button>
   </nav>
@@ -349,6 +349,62 @@
   </div>
 
   <div id="viewProfile" style="display:none">
+    <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:var(--phosphor-dim);">
+      <h2>▸ welcome — 2 quick things before your first scan</h2>
+      <div class="desc">
+        every job gets scored against your own goals, not a generic checklist — so we need
+        those first. <b>1.</b> what you're looking for, below — click "update my scoring"
+        after, so it actually takes effect. <b>2.</b> your proof points (optional but helps).
+        then head to <b>settings</b> to connect an AI key, which activates scanning.
+      </div>
+    </div>
+    <div class="panel">
+      <h2>1. what you're looking for</h2>
+      <div class="desc">tell us in plain language: what kind of role, what about your background matters, any hard no's, location/remote needs. this is what scoring is actually based on — not a generic checklist. saved automatically; click "update my scoring" below whenever you change it so scans start using the new version.</div>
+      <textarea id="stanceBox" placeholder="e.g. I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."></textarea>
+      <div class="save-hint" id="stanceSaveHint"></div>
+      <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
+      <span id="rubricStatus" style="font-size:11px;color:var(--text-dim);"></span>
+    </div>
+
+    <div class="panel">
+      <h2>2. what you've got</h2>
+      <div class="desc">your proof points — edit freely, this feeds the gap analysis and plan below. saved automatically.</div>
+      <textarea id="skillsBox"></textarea>
+      <div class="save-hint" id="saveHint"></div>
+    </div>
+
+    <div class="panel">
+      <h2>upload your CV</h2>
+      <div class="desc">optional, but it's the real thing — pulls actual text out of your CV and feeds it into every scan and plan alongside the box above. .pdf, .docx, or .txt. stays private to this artifact, never leaves your storage.</div>
+      <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <label for="cvUpload" class="scan" style="display:inline-block;cursor:pointer;">▸ choose file</label>
+        <span id="cvFileName" style="font-size:12px;color:var(--text-dim);"></span>
+        <button id="cvRemove" class="star" style="display:none;width:auto;padding:0 10px;">remove</button>
+      </div>
+      <div class="save-hint" id="cvStatus"></div>
+    </div>
+  </div>
+
+  <div id="viewPlan" style="display:none">
+    <div class="panel">
+      <h2>what the market keeps asking for</h2>
+      <div class="desc">tallied live from every scan you've run, in "scan" and "watchlist" both — one shared signal, not split across tabs. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
+      <div id="gapBars"><div class="empty">run a few scans first — this fills in from real postings, not guesses.</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>6-month plan</h2>
+      <div class="desc">one plan — built from your skills, everything tallied from real postings, and any companies you're tracking below get factored in automatically. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <button class="scan" id="genPlanBtn">▸ generate plan</button>
+      <div class="status" id="planStatus"></div>
+    </div>
+
+    <div id="planResults"></div>
+  </div>
+
+  <div id="viewSettings" style="display:none">
     <div class="panel" style="border-color:var(--phosphor-dim);">
       <h2>▸ connect your AI keys</h2>
       <div class="desc">
@@ -388,25 +444,6 @@
     </div>
 
     <div class="panel">
-      <h2>what you've got</h2>
-      <div class="desc">your proof points — edit freely, this feeds the gap analysis and plan below. saved automatically.</div>
-      <textarea id="skillsBox"></textarea>
-      <div class="save-hint" id="saveHint"></div>
-    </div>
-
-    <div class="panel">
-      <h2>upload your CV</h2>
-      <div class="desc">optional, but it's the real thing — pulls actual text out of your CV and feeds it into every scan and plan alongside the box above. .pdf, .docx, or .txt. stays private to this artifact, never leaves your storage.</div>
-      <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <label for="cvUpload" class="scan" style="display:inline-block;cursor:pointer;">▸ choose file</label>
-        <span id="cvFileName" style="font-size:12px;color:var(--text-dim);"></span>
-        <button id="cvRemove" class="star" style="display:none;width:auto;padding:0 10px;">remove</button>
-      </div>
-      <div class="save-hint" id="cvStatus"></div>
-    </div>
-
-    <div class="panel">
       <h2>connect GitHub</h2>
       <div class="desc">
         lets any side project spin up a real private repo + starter README in one click.
@@ -428,26 +465,7 @@
         <span id="ghStatus" style="font-size:11px;color:var(--text-dim);"></span>
       </div>
     </div>
-  </div>
 
-  <div id="viewPlan" style="display:none">
-    <div class="panel">
-      <h2>what the market keeps asking for</h2>
-      <div class="desc">tallied live from every scan you've run, in "scan" and "watchlist" both — one shared signal, not split across tabs. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
-      <div id="gapBars"><div class="empty">run a few scans first — this fills in from real postings, not guesses.</div></div>
-    </div>
-
-    <div class="panel">
-      <h2>6-month plan</h2>
-      <div class="desc">one plan — built from your skills, everything tallied from real postings, and any companies you're tracking below get factored in automatically. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
-      <button class="scan" id="genPlanBtn">▸ generate plan</button>
-      <div class="status" id="planStatus"></div>
-    </div>
-
-    <div id="planResults"></div>
-  </div>
-
-  <div id="viewPrompts" style="display:none">
     <div class="panel">
       <h2>✎ edit the actual prompts</h2>
       <div class="desc">
@@ -1046,14 +1064,15 @@ async function runScan(){
   document.getElementById('results').innerHTML = '';
 
   const candidateContext = await buildCandidateContext();
+  const { stance, rubric } = await buildStanceAndRubric();
   const scanTemplate = await getPromptTemplate('scan');
   const prompt = fillTemplate(scanTemplate, {
     FOCUS_AREAS: focusAreasText(),
     KEYWORDS: kw,
     LOCATION: loc,
     CANDIDATE_PROFILE: candidateContext,
-    CANDIDATE_STANCE: CANDIDATE_STANCE_TEXT,
-    RUBRIC: RUBRIC_TEXT
+    CANDIDATE_STANCE: stance,
+    RUBRIC: rubric
   });
 
   try{
@@ -1213,30 +1232,30 @@ function recoverKeyedString(text, key){
 document.getElementById('scanBtn').addEventListener('click', runScan);
 
 /* ---- nav ---- */
-const VIEWS = ['scan','watch','profile','plan','prompts','portfolio'];
+const VIEWS = ['scan','watch','profile','plan','portfolio','settings'];
 function switchView(view){
   document.getElementById('viewScan').style.display = view==='scan' ? '' : 'none';
   document.getElementById('viewWatchlist').style.display = view==='watch' ? '' : 'none';
   document.getElementById('viewProfile').style.display = view==='profile' ? '' : 'none';
   document.getElementById('viewPlan').style.display = view==='plan' ? '' : 'none';
-  document.getElementById('viewPrompts').style.display = view==='prompts' ? '' : 'none';
+  document.getElementById('viewSettings').style.display = view==='settings' ? '' : 'none';
   document.getElementById('viewPortfolio').style.display = view==='portfolio' ? '' : 'none';
   document.getElementById('navScan').classList.toggle('active', view==='scan');
   document.getElementById('navWatch').classList.toggle('active', view==='watch');
   document.getElementById('navProfile').classList.toggle('active', view==='profile');
   document.getElementById('navPlan').classList.toggle('active', view==='plan');
-  document.getElementById('navPrompts').classList.toggle('active', view==='prompts');
+  document.getElementById('navSettings').classList.toggle('active', view==='settings');
   document.getElementById('navPortfolio').classList.toggle('active', view==='portfolio');
   if(view === 'watch') renderWatchResults();
   if(view === 'plan') renderGapBars();
-  if(view === 'prompts') renderPromptEditors();
+  if(view === 'settings') renderPromptEditors();
   if(view === 'portfolio') renderPortfolio();
 }
 document.getElementById('navScan').onclick = ()=>switchView('scan');
 document.getElementById('navWatch').onclick = ()=>switchView('watch');
 document.getElementById('navProfile').onclick = ()=>switchView('profile');
 document.getElementById('navPlan').onclick = ()=>switchView('plan');
-document.getElementById('navPrompts').onclick = ()=>switchView('prompts');
+document.getElementById('navSettings').onclick = ()=>switchView('settings');
 document.getElementById('navPortfolio').onclick = ()=>switchView('portfolio');
 
 /* ---- profile: skills box ---- */
@@ -1266,6 +1285,69 @@ async function loadProfile(){
     }, 700);
   });
 }
+
+/* ---- profile: "what you're looking for" — replaces the old hardcoded
+   CANDIDATE_STANCE_TEXT/RUBRIC_TEXT with per-user generated versions.
+   The user writes plain language; one model call turns it into a stance
+   paragraph + a weighted scoring rubric, generated once and reused across
+   scans (not regenerated per scan — same cost profile as the old constants). */
+async function loadStance(){
+  const box = document.getElementById('stanceBox');
+  box.value = await settingGet('job_stance', '');
+  let saveTimer;
+  box.addEventListener('input', ()=>{
+    clearTimeout(saveTimer);
+    document.getElementById('stanceSaveHint').textContent = 'saving…';
+    saveTimer = setTimeout(async ()=>{
+      await settingSet('job_stance', box.value);
+      document.getElementById('stanceSaveHint').textContent = 'saved — click "update my scoring" to apply it';
+    }, 700);
+  });
+  const hasGenerated = await settingGet('generated_stance', null);
+  document.getElementById('rubricStatus').textContent = hasGenerated
+    ? 'scoring is personalized to your profile'
+    : 'not generated yet — using a generic default until you do';
+}
+
+const RUBRIC_GENERATION_PROMPT = `A candidate is job-hunting and described what they're looking for in their own words below. Turn this into two things a job-scoring system will use for every job posting evaluation:
+
+1. A "stance" paragraph: rewrite their description as a clear, third-person brief a recruiter-scoring AI can use as fixed context — their target roles, what background to treat as transferable vs. their permanent lane, explicit dealbreakers, and location/remote needs. Keep everything they actually said; don't invent new preferences.
+
+2. A "rubric": 3-5 scoring dimensions that matter most for THIS person specifically, each with a point weight (weights must sum to 100), derived from what they emphasized. If they signaled a specific hard gate risk (e.g. "I don't have professional SWE experience and roles requiring it are a dealbreaker"), that must be its own scored dimension, not folded into a generic "skills fit" — this is the single most common reason a generic rubric fails a specific candidate. Also include instructions for a "gate" field: a short note naming a hard blocker the candidate cannot pass, or null.
+
+Candidate's own words:
+{{STANCE_INPUT}}
+
+Respond with ONLY raw JSON, no markdown fences, no preamble, in this exact shape:
+{"stance":"the third-person paragraph","rubric":"the full rubric text, formatted as a markdown-style bullet list of dimensions with point weights and a closing line about the gate field, ready to paste directly into a scoring prompt"}`;
+
+async function generateRubricFromStance(){
+  const btn = document.getElementById('generateRubricBtn');
+  const status = document.getElementById('rubricStatus');
+  const stanceInput = (document.getElementById('stanceBox').value || '').trim();
+  if(!stanceInput){
+    status.textContent = 'write something in the box above first';
+    return;
+  }
+  btn.disabled = true;
+  status.textContent = 'generating your personalized scoring…';
+  try{
+    const prompt = fillTemplate(RUBRIC_GENERATION_PROMPT, { STANCE_INPUT: stanceInput });
+    const text = await callLLM({ prompt, maxTokens: 800 });
+    const parsed = JSON.parse(text.trim().replace(/^```json\n?/, '').replace(/```$/, ''));
+    if(!parsed.stance || !parsed.rubric) throw new Error('model response missing stance or rubric');
+    await settingSet('generated_stance', parsed.stance);
+    await settingSet('generated_rubric', parsed.rubric);
+    status.textContent = 'scoring is personalized to your profile — future scans will use it';
+    document.getElementById('onboardingBanner').style.display = 'none';
+  }catch(e){
+    console.error('generateRubricFromStance failed', e);
+    status.textContent = `couldn't generate: ${e.message}`;
+  }finally{
+    btn.disabled = false;
+  }
+}
+document.getElementById('generateRubricBtn').addEventListener('click', generateRubricFromStance);
 
 /* ---- profile: CV upload & extraction ---- */
 async function extractTextFromFile(file){
@@ -1372,6 +1454,15 @@ async function buildCandidateContext(){
   }catch(e){ return DEFAULT_SKILLS; }
 }
 
+/* falls back to the old shared constants if this user hasn't generated a
+   personalized stance/rubric yet (new users before their first "update my
+   scoring" click, or anyone who skips the "what you're looking for" panel) */
+async function buildStanceAndRubric(){
+  const stance = await settingGet('generated_stance', CANDIDATE_STANCE_TEXT);
+  const rubric = await settingGet('generated_rubric', RUBRIC_TEXT);
+  return { stance, rubric };
+}
+
 /* ---- profile: skill tally from real scans (aggregated live from skill_signal table) ---- */
 async function renderGapBars(){
   const el = document.getElementById('gapBars');
@@ -1402,6 +1493,7 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   planResults.innerHTML = '';
 
   const skills = await buildCandidateContext();
+  const { stance } = await buildStanceAndRubric();
   const { tally } = await getSkillTally();
   const topAsks = Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([s,c])=>`${s} (seen ${c}x)`).join(', ') || 'no scan data yet — using general market knowledge instead';
 
@@ -1409,7 +1501,7 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   const prompt = fillTemplate(planTemplate, {
     CANDIDATE_PROFILE: skills,
     MARKET_TALLY: topAsks,
-    CANDIDATE_STANCE: CANDIDATE_STANCE_TEXT,
+    CANDIDATE_STANCE: stance,
     WATCHLIST_COMPANIES: watchCompanies.length ? watchCompanies.join(', ') : 'none tracked yet'
   });
 
@@ -1728,12 +1820,13 @@ document.getElementById('watchScanBtn').addEventListener('click', async ()=>{
   watchStatusEl(`checking ${watchCompanies.length} companies`, true);
 
   const candidateContext = await buildCandidateContext();
+  const { stance, rubric } = await buildStanceAndRubric();
   const watchScanTemplate = await getPromptTemplate('watchscan');
   const prompt = fillTemplate(watchScanTemplate, {
     WATCHLIST_COMPANIES: watchCompanies.join(', '),
     CANDIDATE_PROFILE: candidateContext,
-    CANDIDATE_STANCE: CANDIDATE_STANCE_TEXT,
-    RUBRIC: RUBRIC_TEXT
+    CANDIDATE_STANCE: stance,
+    RUBRIC: rubric
   });
 
   try{
@@ -1828,11 +1921,23 @@ async function showApp(){
   loadCustomTags();
   applyRemovedPresets();
   loadProfile();
+  loadStance();
   loadCvStatus();
   loadGithubStatus();
   renderPortfolio();
   loadStoredPlan();
   loadApiKeyStatus();
+
+  // new users (or anyone who's typed a stance but never clicked "update my
+  // scoring") land on Profile instead of Scan. Gating on generated_rubric,
+  // not just job_stance text, because typing alone doesn't generate anything —
+  // without this, a scan would silently fall back to the generic default
+  // rubric with no indication that's what happened.
+  const generatedRubric = await settingGet('generated_rubric', null);
+  if(!generatedRubric){
+    document.getElementById('onboardingBanner').style.display = '';
+    switchView('profile');
+  }
 }
 function showLoginGate(){
   document.getElementById('authGate').style.display = '';
