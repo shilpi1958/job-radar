@@ -32,10 +32,14 @@ concrete technical side projects, and turns those projects into real GitHub repo
 3. Project Settings → API → copy the Project URL and the `sb_publishable_...` (anon) key.
 4. In `index.html`, update `SUPABASE_URL` and `SUPABASE_KEY` near the top of the
    `<script>` block to match your project.
-5. Auth → Email templates: default magic-link template works out of the box. Free tier
+5. Auth → URL Configuration: add every origin you'll actually sign in from (production
+   URL, `http://localhost:<port>/**` for local dev) to Redirect URLs — Supabase silently
+   falls back to the Site URL for anything not on that list, so magic links sent while
+   testing locally will otherwise land you back on production instead.
+6. Auth → Email templates: default magic-link template works out of the box. Free tier
    rate-limits outbound email (a handful per hour) — fine for testing, needs a custom
    SMTP provider wired into Supabase before real traffic.
-6. Deploy the OpenAI proxy (needed only if anyone will use the OpenAI provider):
+7. Deploy the OpenAI proxy (needed only if anyone will use the OpenAI provider):
 
    ```bash
    npx supabase login
@@ -80,3 +84,9 @@ All four AI prompts (scan, six-month plan, watchlist scan) are stored as editabl
 templates in the app itself (Prompts tab) — not hardcoded strings you need to dig through
 code to change. `{{PLACEHOLDER}}` tokens get substituted at call time; see `PROMPT_DEFS`
 in the script for the full list per prompt.
+
+## `docs/learning-log/`
+
+A write-up per shipped PR — what broke or was missing, why the fix is shaped the way it
+is, and what it taught. Not a changelog (that's `git log`); each entry explains the
+reasoning a diff alone doesn't show. Numbered in ship order, one file per PR.
