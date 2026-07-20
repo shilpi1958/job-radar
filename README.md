@@ -37,8 +37,13 @@ concrete technical side projects, and turns those projects into real GitHub repo
    falls back to the Site URL for anything not on that list, so magic links sent while
    testing locally will otherwise land you back on production instead.
 6. Auth → Email templates: default magic-link template works out of the box. Free tier
-   rate-limits outbound email (a handful per hour) — fine for testing, needs a custom
-   SMTP provider wired into Supabase before real traffic.
+   rate-limits outbound email (a handful per hour) — fine for testing, but needs a
+   custom SMTP provider before real traffic. This project uses
+   [Resend](https://resend.com): Project Settings → Authentication → Emails → SMTP
+   Settings → enable custom SMTP, host `smtp.resend.com`, port `465`, username
+   `resend`, password = your Resend API key. `scripts/send-test-email.js` sends a
+   one-off test email via the Resend SDK directly (not through Supabase) to sanity
+   check the API key works before wiring it into Supabase's SMTP settings.
 7. Deploy the OpenAI proxy (needed only if anyone will use the OpenAI provider):
 
    ```bash
@@ -67,6 +72,8 @@ reference only; not part of the running app.
 - **RLS is real now** (per-user isolation is enforced at the database level), but there's
   no rate limiting on signups/scans per user yet — someone could hammer their own account
   with API calls. Not a data-leak risk, just a cost-control gap if this gets real traffic.
+  Resend's free tier is also capped (100 emails/day) — fine for early usage, worth
+  watching if signups pick up.
 - **Operator analytics** live as plain SQL views (`analytics_usage_summary`,
   `analytics_search_trends`, `analytics_skill_demand`, `analytics_watched_companies`) —
   query them directly in the Supabase SQL Editor. No in-app admin dashboard yet.
