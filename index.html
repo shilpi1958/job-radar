@@ -141,7 +141,6 @@
     border-left:3px solid var(--phosphor-dim);
     position:relative;
   }
-  .card.saved{border-left-color:var(--amber);}
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
   .card h3{
     font-family:'Space Grotesk',sans-serif;font-size:15px;margin:0 0 4px;color:var(--text);font-weight:600;
@@ -152,7 +151,7 @@
   .card .fit b{color:var(--amber);}
   .card .gate{font-size:11px;color:var(--phosphor);margin-top:6px;line-height:1.5;}
   .card .gate.blocked{color:var(--danger);}
-  .card-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;}
+  .card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 
   .meter-wrap{display:flex;align-items:center;gap:10px;margin-top:10px;}
   .meter-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
@@ -169,6 +168,11 @@
   .star.on{color:var(--amber);border-color:var(--amber);}
   .broken-btn{font-size:11px;}
   .broken-btn:hover{color:var(--danger);border-color:var(--danger);background:rgba(255,107,94,0.1);}
+  .star.watch-btn{
+    width:auto;height:auto;padding:6px 10px;font-size:11px;white-space:nowrap;
+  }
+  .star.watch-btn:hover{color:var(--phosphor);border-color:var(--phosphor);background:rgba(93,255,158,0.08);}
+  .star.watch-btn:disabled{cursor:default;color:var(--phosphor);border-color:var(--phosphor-dim);opacity:0.7;}
   a.apply{
     color:var(--phosphor);text-decoration:none;font-size:11px;border:1px solid var(--phosphor-dim);
     padding:6px 10px;border-radius:3px;white-space:nowrap;
@@ -299,10 +303,7 @@
     </div>
     <div class="actions">
       <button class="scan" id="scanBtn">▸ run scan</button>
-      <div class="view-toggle">
-        <button class="active" id="tabAll">results</button>
-        <button id="tabSaved">saved (<span id="savedCount">0</span>)</button>
-      </div>
+    </div>
     </div>
     <div class="desc" style="margin-top:6px;">live web search + model call on your own API key — typically 30-60s, real spend each time (except an exact repeat search within a week, which just asks first instead).</div>
   </div>
@@ -335,7 +336,7 @@
   <div id="viewWatchlist" style="display:none">
     <div class="panel">
       <h2>companies you're tracking</h2>
-      <div class="desc">built from what you find, not typed from memory — hit "+ watchlist" on a result in the scan tab to add a company here. these, plus any company from a job you've starred, are what your 6-month plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
+      <div class="desc">built from what you find, not typed from memory — hit "+ watchlist" on a result in the scan tab to add a company here. these are what your 6-month plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
       <div class="chips" id="watchChips"></div>
     </div>
 
@@ -453,7 +454,7 @@
 
     <div class="panel">
       <h2>6-month plan</h2>
-      <div class="desc">one plan — built from your skills, everything tallied from real postings, and companies you're targeting (watchlist + any you've starred from a scan) get factored in automatically, spread across projects rather than just one. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <div class="desc">one plan — built from your skills, everything tallied from real postings, and companies on your watchlist get factored in automatically, spread across projects rather than just one. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
       <div class="status" id="planStatus"></div>
     </div>
@@ -625,11 +626,6 @@ async function markLinkBroken(key){
   const job = currentResults.find(j => jobKey(j) === key);
   if(!job || !job.id){ alert('Could not find that job to flag.'); return; }
   try{ await db.from('broken_links').upsert({ job_id: job.id }); }catch(e){ console.error(e); }
-  if(savedJobs[key]){
-    delete savedJobs[key];
-    try{ await db.from('saved_jobs').delete().eq('job_id', job.id).eq('user_id', currentUserId); }catch(e){}
-    document.getElementById('savedCount').textContent = Object.keys(savedJobs).length;
-  }
   await loadStack();
   await renderWatchResults();
 }
@@ -637,29 +633,6 @@ async function markLinkBroken(key){
 async function loadStack(){
   currentResults = (await getUnifiedJobs()).sort((a,b)=>(b.score||0)-(a.score||0));
   render();
-}
-
-async function toggleSave(job){
-  const key = jobKey(job);
-  if(!job.id) return;
-  if(savedJobs[key]){
-    delete savedJobs[key];
-    try{ await db.from('saved_jobs').delete().eq('job_id', job.id).eq('user_id', currentUserId); }catch(e){}
-  }else{
-    savedJobs[key] = job;
-    try{ await db.from('saved_jobs').upsert({ job_id: job.id, user_id: currentUserId }); }catch(e){}
-  }
-  document.getElementById('savedCount').textContent = Object.keys(savedJobs).length;
-  render();
-}
-
-async function loadSaved(){
-  try{
-    const { data } = await db.from('saved_jobs').select('job_id, jobs!inner(*)').eq('user_id', currentUserId);
-    savedJobs = {};
-    (data||[]).forEach(r=>{ savedJobs[jobKey(r.jobs)] = Object.assign({}, r.jobs, { id: r.job_id }); });
-  }catch(e){ savedJobs = {}; }
-  document.getElementById('savedCount').textContent = Object.keys(savedJobs).length;
 }
 
 /* ---- skill tally: private per user — aggregated live from skill_signal ---- */
@@ -896,7 +869,7 @@ Here is what real job postings scanned for her have actually been asking for, ac
 
 {{CANDIDATE_STANCE}}
 
-Companies she is specifically targeting — from her watchlist and from roles she's explicitly saved/starred from scans, if any: {{WATCHLIST_COMPANIES}}
+Companies she is specifically targeting, from her watchlist, if any: {{WATCHLIST_COMPANIES}}
 
 Of those, companies that already have a side project targeting them in her portfolio (deprioritize these — favor companies with no coverage yet, since projects accumulate across plan runs, not all at once): {{ALREADY_TARGETED}}
 
@@ -940,8 +913,6 @@ function fillTemplate(template, vars){
 
 
 let currentResults = [];
-let savedJobs = {};
-let viewMode = 'all';
 
 document.querySelectorAll('#chips .chip .chip-label').forEach(label=>{
   label.addEventListener('click', ()=>{
@@ -1001,12 +972,6 @@ document.getElementById('addTagInput').addEventListener('keydown', async (e)=>{
   }
 });
 
-document.getElementById('tabAll').onclick = ()=>{ viewMode='all'; render(); updateTabs(); };
-document.getElementById('tabSaved').onclick = ()=>{ viewMode='saved'; render(); updateTabs(); };
-function updateTabs(){
-  document.getElementById('tabAll').classList.toggle('active', viewMode==='all');
-  document.getElementById('tabSaved').classList.toggle('active', viewMode==='saved');
-}
 
 function statusEl(msg, scanning){
   const s = document.getElementById('status');
@@ -1043,7 +1008,7 @@ async function runScan(){
     const daysAgo = Math.round((Date.now() - lastRun) / (24*60*60*1000) * 10) / 10;
     const rescan = confirm(`You ran this exact search ${daysAgo} day(s) ago. Postings don't change fast — your stacked list already has whatever it found.\n\nOK = scan again anyway (costs credits)\nCancel = skip, just show what's already stacked`);
     if(!rescan){
-      viewMode = 'all'; updateTabs(); render();
+      render();
       statusEl(`skipped — showing your full stacked list · no credits used`, false);
       return;
     }
@@ -1097,28 +1062,25 @@ async function runScan(){
     statusEl('scan failed — the search may have returned an unexpected format. try again.', false);
   }
   btn.disabled = false;
-  viewMode = 'all';
-  updateTabs();
   render();
 }
 
 function render(){
   const container = document.getElementById('results');
-  const list = viewMode === 'saved' ? Object.values(savedJobs) : currentResults;
+  const list = currentResults;
   if(list.length === 0){
-    container.innerHTML = `<div class="empty">${viewMode==='saved' ? 'nothing saved yet — star a result to keep it here' : 'no results yet — hit "run scan" above'}</div>`;
+    container.innerHTML = `<div class="empty">no results yet — hit "run scan" above</div>`;
     return;
   }
   const trackedNormalized = watchCompanies.map(c=>c.toLowerCase().trim());
   container.innerHTML = list.map(job=>{
     const key = job.company + '::' + job.title;
-    const isSaved = !!savedJobs[key];
     const isTracked = trackedNormalized.includes((job.company||'').toLowerCase().trim());
     const score = typeof job.score === 'number' ? job.score : null;
     const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
     const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
     return `
-    <div class="card ${isSaved?'saved':''}">
+    <div class="card">
       <div class="card-top">
         <div>
           <h3>${escapeHtml(job.title||'')}</h3>
@@ -1126,7 +1088,6 @@ function render(){
           <div class="meta">${escapeHtml(job.location||'')}${job.source ? ' · via ' + escapeHtml(job.source) : ''}</div>
         </div>
         <div class="card-actions">
-          <button class="star ${isSaved?'on':''}" data-key="${encodeURIComponent(key)}">${isSaved?'★':'☆'}</button>
           ${job.company ? `<button class="star watch-btn" data-company="${escapeAttr(job.company)}" ${isTracked?'disabled':''} title="${isTracked?'already on your watchlist':'add this company to your watchlist'}">${isTracked?'✓ tracked':'+ watchlist'}</button>` : ''}
           ${job.url ? `<a class="apply" href="${escapeAttr(job.url)}" target="_blank" rel="noopener">view →</a>` : ''}
           <button class="star broken-btn" data-key="${encodeURIComponent(key)}" title="mark link as dead / page not found">⚠✕</button>
@@ -1143,13 +1104,6 @@ function render(){
     </div>`;
   }).join('');
 
-  container.querySelectorAll('.star:not(.broken-btn):not(.watch-btn)').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const key = decodeURIComponent(btn.dataset.key);
-      const job = list.find(j => (j.company+'::'+j.title) === key);
-      if(job) toggleSave(job);
-    });
-  });
   container.querySelectorAll('.broken-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const key = decodeURIComponent(btn.dataset.key);
@@ -1506,8 +1460,7 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   const { tally } = await getSkillTally();
   const topAsks = Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([s,c])=>`${s} (seen ${c}x)`).join(', ') || 'no scan data yet — using general market knowledge instead';
 
-  const savedJobCompanies = Object.values(savedJobs).map(j=>j.company).filter(Boolean);
-  const targetCompanies = [...new Set([...watchCompanies, ...savedJobCompanies])];
+  const targetCompanies = [...new Set(watchCompanies)];
   const portfolio = await getPortfolio();
   const alreadyTargeted = [...new Set(portfolio.map(p=>p.target_company).filter(c=>c && c.toLowerCase()!=='general'))];
 
@@ -1907,7 +1860,6 @@ async function renderPromptEditors(){
 }
 
 async function initLoad(){
-  await loadSaved();
   await loadStack();
   await loadWatchCompanies();
   renderWatchResults();
