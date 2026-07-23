@@ -279,6 +279,10 @@
         <label>location</label>
         <input type="text" id="loc" value="Bengaluru or Remote India">
       </div>
+      <div class="field">
+        <label>company (optional)</label>
+        <input type="text" id="companyFilter" placeholder="e.g. 'Anthropic' — leave blank to search broadly">
+      </div>
     </div>
     <div class="chips" id="chips">
       <span class="chip" data-tag="healthcare"><span class="chip-label">healthcare AI / EHR</span><span class="chip-x">✕</span></span>
@@ -331,20 +335,10 @@
   <div id="viewWatchlist" style="display:none">
     <div class="panel">
       <h2>companies you're tracking</h2>
-      <div class="desc">add any company by name — this pulls their actual current open roles, not a generic scan. these, plus any company from a job you've starred in a scan, are what your 6-month plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
+      <div class="desc">built from what you find, not typed from memory — hit "+ watchlist" on a result in the scan tab to add a company here. these, plus any company from a job you've starred, are what your 6-month plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
       <div class="chips" id="watchChips"></div>
-      <div class="row" style="margin-bottom:14px;">
-        <div class="field">
-          <input type="text" id="watchInput" placeholder="add a company name — press Enter (e.g. 'Ather Energy', 'Peoplebox.ai')">
-        </div>
-      </div>
-      <div class="actions">
-        <button class="scan" id="watchScanBtn">▸ check open roles</button>
-      </div>
-      <div class="desc" style="margin-top:6px;">live web search + model call on your own API key — typically 30-60s, real spend each time (except an exact repeat check within a day, which just asks first instead).</div>
     </div>
 
-    <div class="status" id="watchStatus"></div>
     <div id="watchResults"></div>
 
     <div class="desc" style="text-align:center;margin-top:4px;">roles found here feed straight into the one shared six-month plan — no separate plan to generate here anymore.</div>
@@ -861,7 +855,7 @@ const RUBRIC_TEXT = `- Domain fit (healthcare AI/EHR, or robotics/hardware/deep 
 Also set "gate": a short note if there's a hard requirement she doesn't meet (e.g. "requires 3+ yrs as SWE"), or null if there's no such gate.`;
 
 const DEFAULT_PROMPT_SCAN = `Search the web right now for CURRENT, REAL, live job openings (not generic listing-site search pages) that match this candidate. Focus areas: {{FOCUS_AREAS}}.
-
+{{COMPANY_FILTER}}
 Prioritize these sources, in order, over generic search results:
 1. Company career pages directly (search "site:[company].com careers" style or the company's own jobs page)
 2. Wellfound (AngelList Talent), Naukri, Instahyre, Cutshort — Instahyre and Cutshort specifically skew toward Indian early-stage/technical roles, weight these heavily for her profile
@@ -925,26 +919,9 @@ Return ONLY raw JSON, no markdown fences, no preamble, never use double-quote ch
 }
 Be terse everywhere — this has to fit a strict output budget. Exactly 3 skill_gaps and exactly 3 side_projects, no more. Be specific and concrete, no generic career advice, no mention of publishing or posting anywhere.`;
 
-const DEFAULT_PROMPT_WATCHSCAN = `Search the web right now for CURRENT, REAL, open job postings at these SPECIFIC named companies ONLY: {{WATCHLIST_COMPANIES}}. Check each company's own careers page first. For each company, find up to 2 currently open roles that are plausible fits — product/PM roles, or notably technical roles she could grow into. If a company genuinely has no open roles right now, skip it, do not invent one.
-
-Candidate context:
-{{CANDIDATE_PROFILE}}
-
-Fixed context: {{CANDIDATE_STANCE}}
-
-Score each role 0-100 using this rubric:
-{{RUBRIC}}
-
-CRITICAL on "url": it must be the literal URL returned by a search result, copied exactly. NEVER construct, guess, or pattern-match a URL yourself. If no verified direct posting link exists, use the company's actual careers/jobs listing page URL — also taken verbatim from a search result, never invented.
-
-Return ONLY raw JSON array, no markdown fences, no preamble, never use double-quote characters inside string values. Format:
-[{"title":"","company":"","location":"","url":"","jd_summary":"one or two sentence real summary of the actual JD","skills_required":[],"score":0,"gate":null}]
-Cap at 8 total results across all companies.`;
-
 const PROMPT_DEFS = [
-  { key: 'scan', label: 'scan — finds & scores jobs', default: DEFAULT_PROMPT_SCAN, placeholders: ['FOCUS_AREAS','KEYWORDS','LOCATION','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] },
-  { key: 'plan', label: 'six-month plan — skill gaps + side projects (one unified plan, targeted companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES','ALREADY_TARGETED'] },
-  { key: 'watchscan', label: 'watchlist — finds & scores roles at named companies', default: DEFAULT_PROMPT_WATCHSCAN, placeholders: ['WATCHLIST_COMPANIES','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] }
+  { key: 'scan', label: 'scan — finds & scores jobs (optionally scoped to one company)', default: DEFAULT_PROMPT_SCAN, placeholders: ['FOCUS_AREAS','COMPANY_FILTER','KEYWORDS','LOCATION','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] },
+  { key: 'plan', label: 'six-month plan — skill gaps + side projects (one unified plan, targeted companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES','ALREADY_TARGETED'] }
 ];
 
 async function getPromptTemplate(key){
@@ -1054,8 +1031,9 @@ async function runScan(){
   if(!requireApiKey()) return;
   const kw = document.getElementById('kw').value.trim();
   const loc = document.getElementById('loc').value.trim();
+  const company = document.getElementById('companyFilter').value.trim();
   const btn = document.getElementById('scanBtn');
-  const signature = JSON.stringify({kw, loc, tags: [...activeTags].sort()});
+  const signature = JSON.stringify({kw, loc, company, tags: [...activeTags].sort()});
 
   const scanLog = await settingGet('scan_log', {});
 
@@ -1078,8 +1056,12 @@ async function runScan(){
   const candidateContext = await buildCandidateContext();
   const { stance, rubric } = await buildStanceAndRubric();
   const scanTemplate = await getPromptTemplate('scan');
+  const companyFilterText = company
+    ? `Restrict results to this company ONLY: "${company}". Check their own careers page first. If they genuinely have no open roles right now, return no results rather than substituting a different company.`
+    : '';
   const prompt = fillTemplate(scanTemplate, {
     FOCUS_AREAS: focusAreasText(),
+    COMPANY_FILTER: companyFilterText,
     KEYWORDS: kw,
     LOCATION: loc,
     CANDIDATE_PROFILE: candidateContext,
@@ -1088,7 +1070,7 @@ async function runScan(){
   });
 
   try{
-    const textBlocks = await callLLM({ prompt, maxTokens: 1000, webSearch: true, webSearchMaxUses: 3 });
+    const textBlocks = await callLLM({ prompt, maxTokens: 1000, webSearch: true, webSearchMaxUses: company ? 5 : 3 });
     let clean = textBlocks.replace(/```json|```/g,'').trim();
     const firstBracket = clean.indexOf('[');
     const lastBracket = clean.lastIndexOf(']');
@@ -1105,7 +1087,7 @@ async function runScan(){
     const freshJobs = Array.isArray(jobs) ? jobs : [];
     freshJobs.sort((a,b)=>(b.score||0)-(a.score||0));
     const recoveredNote = freshJobs.length ? '' : ' (response was malformed and no entries could be recovered — try again)';
-    const scanId = await insertScan('scan', { keywords: kw, location: loc, tags: [...activeTags, ...customTags] });
+    const scanId = await insertScan('scan', { keywords: kw, location: loc, companies: company ? [company] : [], tags: [...activeTags, ...customTags] });
     currentResults = await mergeIntoStack(freshJobs, 'scan', scanId);
     scanLog[signature] = Date.now();
     await settingSet('scan_log', scanLog);
@@ -1127,9 +1109,11 @@ function render(){
     container.innerHTML = `<div class="empty">${viewMode==='saved' ? 'nothing saved yet — star a result to keep it here' : 'no results yet — hit "run scan" above'}</div>`;
     return;
   }
+  const trackedNormalized = watchCompanies.map(c=>c.toLowerCase().trim());
   container.innerHTML = list.map(job=>{
     const key = job.company + '::' + job.title;
     const isSaved = !!savedJobs[key];
+    const isTracked = trackedNormalized.includes((job.company||'').toLowerCase().trim());
     const score = typeof job.score === 'number' ? job.score : null;
     const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
     const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
@@ -1143,6 +1127,7 @@ function render(){
         </div>
         <div class="card-actions">
           <button class="star ${isSaved?'on':''}" data-key="${encodeURIComponent(key)}">${isSaved?'★':'☆'}</button>
+          ${job.company ? `<button class="star watch-btn" data-company="${escapeAttr(job.company)}" ${isTracked?'disabled':''} title="${isTracked?'already on your watchlist':'add this company to your watchlist'}">${isTracked?'✓ tracked':'+ watchlist'}</button>` : ''}
           ${job.url ? `<a class="apply" href="${escapeAttr(job.url)}" target="_blank" rel="noopener">view →</a>` : ''}
           <button class="star broken-btn" data-key="${encodeURIComponent(key)}" title="mark link as dead / page not found">⚠✕</button>
         </div>
@@ -1158,7 +1143,7 @@ function render(){
     </div>`;
   }).join('');
 
-  container.querySelectorAll('.star:not(.broken-btn)').forEach(btn=>{
+  container.querySelectorAll('.star:not(.broken-btn):not(.watch-btn)').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const key = decodeURIComponent(btn.dataset.key);
       const job = list.find(j => (j.company+'::'+j.title) === key);
@@ -1169,6 +1154,18 @@ function render(){
     btn.addEventListener('click', ()=>{
       const key = decodeURIComponent(btn.dataset.key);
       markLinkBroken(key);
+    });
+  });
+  container.querySelectorAll('.watch-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const company = btn.dataset.company;
+      if(!company || watchCompanies.includes(company)) return;
+      watchCompanies.push(company);
+      renderWatchChips();
+      await addWatchCompany(company);
+      btn.disabled = true;
+      btn.textContent = '✓ tracked';
+      btn.title = 'already on your watchlist';
     });
   });
 }
@@ -1818,24 +1815,6 @@ function renderWatchChips(){
     });
   });
 }
-document.getElementById('watchInput').addEventListener('keydown', async (e)=>{
-  if(e.key === 'Enter'){
-    const val = e.target.value.trim();
-    if(val && !watchCompanies.includes(val)){
-      watchCompanies.push(val);
-      renderWatchChips();
-      await addWatchCompany(val);
-    }
-    e.target.value = '';
-  }
-});
-
-function watchStatusEl(msg, scanning){
-  const s = document.getElementById('watchStatus');
-  s.textContent = msg;
-  s.className = 'status' + (scanning ? ' scanning' : '');
-}
-
 function renderWatchResults(){
   const container = document.getElementById('watchResults');
   const normalized = watchCompanies.map(c=>c.toLowerCase().trim());
@@ -1843,7 +1822,7 @@ function renderWatchResults(){
     .filter(job => normalized.includes((job.company||'').toLowerCase().trim()))
     .sort((a,b)=>(b.score||0)-(a.score||0));
   if(!jobs.length){
-    container.innerHTML = `<div class="empty">${watchCompanies.length ? 'no tracked roles found yet — hit "check open roles," or these companies just haven\'t shown up in any scan yet' : 'add companies above and hit "check open roles"'}</div>`;
+    container.innerHTML = `<div class="empty">${watchCompanies.length ? 'no tracked roles found yet in your scan results — try scanning that company directly from the scan tab' : 'nothing tracked yet — hit "+ watchlist" on a result in the scan tab'}</div>`;
     return;
   }
   container.innerHTML = jobs.map(job=>{
@@ -1881,71 +1860,6 @@ function renderWatchResults(){
     });
   });
 }
-
-document.getElementById('watchScanBtn').addEventListener('click', async ()=>{
-  if(!requireApiKey()) return;
-  const btn = document.getElementById('watchScanBtn');
-  if(watchCompanies.length === 0){
-    watchStatusEl('add at least one company first', false);
-    return;
-  }
-  const signature = JSON.stringify([...watchCompanies].sort());
-  const scanLog = await settingGet('watchlist_scan_log', {});
-  const lastRun = scanLog[signature];
-  const DAY = 24 * 60 * 60 * 1000;
-  if(lastRun && (Date.now() - lastRun) < DAY){
-    const hoursAgo = Math.round((Date.now() - lastRun) / (60*60*1000));
-    const rescan = confirm(`You checked this exact company list ${hoursAgo}h ago.\n\nOK = check again anyway (costs credits)\nCancel = skip, show what's already tracked`);
-    if(!rescan){
-      watchStatusEl(`skipped — showing what's already tracked · no credits used`, false);
-      return;
-    }
-  }
-
-  btn.disabled = true;
-  watchStatusEl(`checking ${watchCompanies.length} companies`, true);
-
-  const candidateContext = await buildCandidateContext();
-  const { stance, rubric } = await buildStanceAndRubric();
-  const watchScanTemplate = await getPromptTemplate('watchscan');
-  const prompt = fillTemplate(watchScanTemplate, {
-    WATCHLIST_COMPANIES: watchCompanies.join(', '),
-    CANDIDATE_PROFILE: candidateContext,
-    CANDIDATE_STANCE: stance,
-    RUBRIC: rubric
-  });
-
-  try{
-    const textBlocks = await callLLM({
-      prompt,
-      maxTokens: 1000,
-      webSearch: true,
-      webSearchMaxUses: Math.min(watchCompanies.length + 2, 8)
-    });
-    let clean = textBlocks.replace(/```json|```/g,'').trim();
-    const firstBracket = clean.indexOf('[');
-    const lastBracket = clean.lastIndexOf(']');
-    if(firstBracket !== -1 && lastBracket !== -1) clean = clean.slice(firstBracket, lastBracket+1);
-    let jobs;
-    try{
-      jobs = JSON.parse(clean);
-    }catch(parseErr){
-      console.warn('watchlist JSON malformed, recovering entry-by-entry:', parseErr.message);
-      jobs = splitTopLevelObjects(textBlocks);
-    }
-    const freshJobs = Array.isArray(jobs) ? jobs : [];
-    const scanId = await insertScan('watchlist', { companies: watchCompanies });
-    currentResults = await mergeIntoStack(freshJobs, 'watchlist', scanId);
-    scanLog[signature] = Date.now();
-    await settingSet('watchlist_scan_log', scanLog);
-    watchStatusEl(`${freshJobs.length} roles found this check · ${new Date().toLocaleTimeString()}`, false);
-    renderWatchResults();
-  }catch(e){
-    console.error(e);
-    watchStatusEl('check failed — the search may have returned an unexpected format, try again', false);
-  }
-  btn.disabled = false;
-});
 
 /* ---- prompts editor ---- */
 async function renderPromptEditors(){
