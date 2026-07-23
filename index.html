@@ -355,7 +355,7 @@
         every job gets scored against your own goals, not a generic checklist — so we need
         those first. <b>1.</b> what you're looking for, below — click "update my scoring"
         after, so it actually takes effect. <b>2.</b> your proof points (optional but helps).
-        then head to <b>settings</b> to connect an AI key, which activates scanning.
+        <b>3.</b> connect an AI key below, which activates scanning.
       </div>
     </div>
     <div class="panel">
@@ -385,26 +385,7 @@
       </div>
       <div class="save-hint" id="cvStatus"></div>
     </div>
-  </div>
 
-  <div id="viewPlan" style="display:none">
-    <div class="panel">
-      <h2>what the market keeps asking for</h2>
-      <div class="desc">tallied live from every scan you've run, in "scan" and "watchlist" both — one shared signal, not split across tabs. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
-      <div id="gapBars"><div class="empty">run a few scans first — this fills in from real postings, not guesses.</div></div>
-    </div>
-
-    <div class="panel">
-      <h2>6-month plan</h2>
-      <div class="desc">one plan — built from your skills, everything tallied from real postings, and any companies you're tracking below get factored in automatically. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
-      <button class="scan" id="genPlanBtn">▸ generate plan</button>
-      <div class="status" id="planStatus"></div>
-    </div>
-
-    <div id="planResults"></div>
-  </div>
-
-  <div id="viewSettings" style="display:none">
     <div class="panel" style="border-color:var(--phosphor-dim);">
       <h2>▸ connect your AI keys</h2>
       <div class="desc">
@@ -465,7 +446,26 @@
         <span id="ghStatus" style="font-size:11px;color:var(--text-dim);"></span>
       </div>
     </div>
+  </div>
 
+  <div id="viewPlan" style="display:none">
+    <div class="panel">
+      <h2>what the market keeps asking for</h2>
+      <div class="desc">tallied live from every scan you've run, in "scan" and "watchlist" both — one shared signal, not split across tabs. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
+      <div id="gapBars"><div class="empty">run a few scans first — this fills in from real postings, not guesses.</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>6-month plan</h2>
+      <div class="desc">one plan — built from your skills, everything tallied from real postings, and any companies you're tracking below get factored in automatically. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <button class="scan" id="genPlanBtn">▸ generate plan</button>
+      <div class="status" id="planStatus"></div>
+    </div>
+
+    <div id="planResults"></div>
+  </div>
+
+  <div id="viewSettings" style="display:none">
     <div class="panel">
       <h2>✎ edit the actual prompts</h2>
       <div class="desc">
