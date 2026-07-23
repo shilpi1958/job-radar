@@ -257,8 +257,7 @@
     <button class="active" id="navScan">▸ scan</button>
     <button id="navWatch">★ watchlist</button>
     <button id="navProfile">◆ profile</button>
-    <button id="navPlan">⏱ six-month plan</button>
-    <button id="navPortfolio">◈ portfolio</button>
+    <button id="navPlan">◈ proof-of-work plan</button>
     <button id="navSettings">⚙ settings</button>
     <div style="flex:1;"></div>
     <button id="signOutBtn" style="color:var(--text-dim);font-size:11px;">↩ sign out</button>
@@ -453,13 +452,14 @@
     </div>
 
     <div class="panel">
-      <h2>6-month plan</h2>
-      <div class="desc">one plan — built from your skills, everything tallied from real postings, and companies on your watchlist get factored in automatically, spread across projects rather than just one. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <h2>proof-of-work plan</h2>
+      <div class="desc">concrete projects that prove you're ready — not a generic roadmap. built from your skills, everything tallied from real postings, and companies on your watchlist get factored in automatically, spread across projects rather than just one. cherry-pick one, hit "build this," and it becomes a real repo right here — no separate portfolio to check. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
       <div class="status" id="planStatus"></div>
     </div>
 
     <div id="planResults"></div>
+    <div id="olderBuilds"></div>
   </div>
 
   <div id="viewSettings" style="display:none">
@@ -470,14 +470,6 @@
       </div>
     </div>
     <div id="promptEditors"></div>
-  </div>
-
-  <div id="viewPortfolio" style="display:none">
-    <div class="panel">
-      <h2>your project portfolio</h2>
-      <div class="desc">every repo you've spun up from a side project, in one place — share this list as-is.</div>
-      <div id="portfolioList"><div class="empty">nothing built yet — hit "build this" on a project in a plan.</div></div>
-    </div>
   </div>
 
   </main>
@@ -1195,31 +1187,27 @@ function recoverKeyedString(text, key){
 document.getElementById('scanBtn').addEventListener('click', runScan);
 
 /* ---- nav ---- */
-const VIEWS = ['scan','watch','profile','plan','portfolio','settings'];
+const VIEWS = ['scan','watch','profile','plan','settings'];
 function switchView(view){
   document.getElementById('viewScan').style.display = view==='scan' ? '' : 'none';
   document.getElementById('viewWatchlist').style.display = view==='watch' ? '' : 'none';
   document.getElementById('viewProfile').style.display = view==='profile' ? '' : 'none';
   document.getElementById('viewPlan').style.display = view==='plan' ? '' : 'none';
   document.getElementById('viewSettings').style.display = view==='settings' ? '' : 'none';
-  document.getElementById('viewPortfolio').style.display = view==='portfolio' ? '' : 'none';
   document.getElementById('navScan').classList.toggle('active', view==='scan');
   document.getElementById('navWatch').classList.toggle('active', view==='watch');
   document.getElementById('navProfile').classList.toggle('active', view==='profile');
   document.getElementById('navPlan').classList.toggle('active', view==='plan');
   document.getElementById('navSettings').classList.toggle('active', view==='settings');
-  document.getElementById('navPortfolio').classList.toggle('active', view==='portfolio');
   if(view === 'watch') renderWatchResults();
-  if(view === 'plan') renderGapBars();
+  if(view === 'plan'){ renderGapBars(); renderOlderBuilds(); }
   if(view === 'settings') renderPromptEditors();
-  if(view === 'portfolio') renderPortfolio();
 }
 document.getElementById('navScan').onclick = ()=>switchView('scan');
 document.getElementById('navWatch').onclick = ()=>switchView('watch');
 document.getElementById('navProfile').onclick = ()=>switchView('profile');
 document.getElementById('navPlan').onclick = ()=>switchView('plan');
 document.getElementById('navSettings').onclick = ()=>switchView('settings');
-document.getElementById('navPortfolio').onclick = ()=>switchView('portfolio');
 
 /* ---- profile: skills box ---- */
 const DEFAULT_SKILLS = `AI PM at a healthcare startup — ambient scribing, clinical documentation
@@ -1561,7 +1549,7 @@ ${project.why_it_lands ? `\n## Why it lands in an interview\n${project.why_it_la
 `;
 }
 
-async function buildProjectRepo(project, btnEl, linkEl){
+async function buildProjectRepo(project, btnEl, linkEl, statsEl){
   const creds = await getGithubCreds();
   if(!creds.username || !creds.token){
     alert('Connect GitHub first — scroll up to "connect GitHub" and save your username + token.');
@@ -1600,7 +1588,8 @@ async function buildProjectRepo(project, btnEl, linkEl){
 
     btnEl.style.display = 'none';
     linkEl.innerHTML = `<a href="${repoData.html_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>`;
-    renderPortfolio();
+    lastRenderedSlugs.add(slugify(project.project));
+    if(statsEl) renderRepoStats(statsEl, repoData.html_url);
   }catch(err){
     console.error(err);
     btnEl.disabled = false;
@@ -1613,19 +1602,43 @@ async function attachBuildButtons(container, projects){
   const portfolio = await getPortfolio();
   const bySlug = {};
   portfolio.forEach(p => { bySlug[slugify(p.project_title)] = p; });
+  const builtSlugs = new Set();
   container.querySelectorAll('.build-repo-btn').forEach(btn=>{
     const idx = parseInt(btn.dataset.idx);
     const project = projects[idx];
     if(!project) return;
     const slug = slugify(project.project);
     const linkEl = container.querySelector(`.repo-link[data-idx="${idx}"]`);
+    const statsEl = container.querySelector(`.repo-stats[data-idx="${idx}"]`);
     if(bySlug[slug]){
+      builtSlugs.add(slug);
       btn.style.display = 'none';
       linkEl.innerHTML = `<a href="${bySlug[slug].repo_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>`;
+      if(statsEl) renderRepoStats(statsEl, bySlug[slug].repo_url);
     }else{
-      btn.addEventListener('click', ()=> buildProjectRepo(project, btn, linkEl));
+      btn.addEventListener('click', ()=> buildProjectRepo(project, btn, linkEl, statsEl));
     }
   });
+  return builtSlugs;
+}
+
+async function renderRepoStats(statsEl, repoUrl){
+  const creds = await getGithubCreds();
+  if(!creds.token){ statsEl.textContent = ''; return; }
+  const parsed = parseOwnerRepo(repoUrl);
+  if(!parsed){ statsEl.textContent = ''; return; }
+  try{
+    const stats = await fetchRepoStats(parsed.owner, parsed.repo, creds.token);
+    const ageDays = Math.floor((Date.now() - new Date(stats.createdAt).getTime()) / 86400000);
+    const parts = [`started ${ageDays}d ago`];
+    if(stats.commits != null) parts.push(`${stats.commits} commit${stats.commits===1?'':'s'}`);
+    if(stats.contributors != null) parts.push(`${stats.contributors} contributor${stats.contributors===1?'':'s'}`);
+    const badge = activityBadge(stats.pushedAt);
+    statsEl.innerHTML = `${escapeHtml(parts.join(' · '))}${badge ? ' · ' + badge : ''}`;
+  }catch(err){
+    console.warn('repo stats fetch failed:', err.message);
+    statsEl.textContent = 'activity data unavailable';
+  }
 }
 
 function parseOwnerRepo(repoUrl){
@@ -1666,45 +1679,25 @@ async function fetchRepoStats(owner, repo, token){
   };
 }
 
-async function renderPortfolio(){
-  const el = document.getElementById('portfolioList');
+let lastRenderedSlugs = new Set();
+
+async function renderOlderBuilds(){
+  const el = document.getElementById('olderBuilds');
   const entries = await getPortfolio();
-  if(!entries.length){
-    el.innerHTML = `<div class="empty">nothing built yet — hit "build this" on a project below</div>`;
-    return;
-  }
-  el.innerHTML = entries.map((e,i)=>`
+  const older = entries.filter(e => !lastRenderedSlugs.has(slugify(e.project_title)));
+  if(!older.length){ el.innerHTML = ''; return; }
+  el.innerHTML = `<h2 style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:18px 0 10px;">already built — from an earlier plan</h2>` +
+    older.map((e,i)=>`
     <div class="source-row">
       <span class="source-dot linked"></span><a href="${e.repo_url}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(e.project_title)}</a>
       ${e.target_company && e.target_company.toLowerCase()!=='general' ? `<span class="tag" style="margin-left:8px;">${escapeHtml(e.target_company)}</span>` : ''}
       ${e.skill_targeted ? `<span style="color:var(--text-dim);font-size:11px;margin-left:8px;">closes: ${escapeHtml(e.skill_targeted)}</span>` : ''}
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;" id="repoStats-${i}">loading activity…</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;" id="olderRepoStats-${i}">loading activity…</div>
     </div>
   `).join('');
-
-  const creds = await getGithubCreds();
-  if(!creds.token){
-    entries.forEach((e,i)=>{ const el2 = document.getElementById(`repoStats-${i}`); if(el2) el2.textContent = ''; });
-    return;
-  }
-
-  entries.forEach(async (e, i)=>{
-    const statsEl = document.getElementById(`repoStats-${i}`);
-    if(!statsEl) return;
-    const parsed = parseOwnerRepo(e.repo_url);
-    if(!parsed){ statsEl.textContent = ''; return; }
-    try{
-      const stats = await fetchRepoStats(parsed.owner, parsed.repo, creds.token);
-      const ageDays = Math.floor((Date.now() - new Date(stats.createdAt).getTime()) / 86400000);
-      const parts = [`started ${ageDays}d ago`];
-      if(stats.commits != null) parts.push(`${stats.commits} commit${stats.commits===1?'':'s'}`);
-      if(stats.contributors != null) parts.push(`${stats.contributors} contributor${stats.contributors===1?'':'s'}`);
-      const badge = activityBadge(stats.pushedAt);
-      statsEl.innerHTML = `${escapeHtml(parts.join(' · '))}${badge ? ' · ' + badge : ''}`;
-    }catch(err){
-      console.warn('repo stats fetch failed:', err.message);
-      statsEl.textContent = 'activity data unavailable';
-    }
+  older.forEach((e,i)=>{
+    const statsEl = document.getElementById(`olderRepoStats-${i}`);
+    if(statsEl) renderRepoStats(statsEl, e.repo_url);
   });
 }
 
@@ -1737,10 +1730,19 @@ function renderPlan(plan){
           <button class="star build-repo-btn" data-idx="${idx}" style="width:auto;padding:0 12px;">▸ build this</button>
           <span class="repo-link" data-idx="${idx}"></span>
         </div>
+        <div class="repo-stats" data-idx="${idx}" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
       </div>`).join('');
   }
   el.innerHTML = html || `<div class="empty">plan came back empty — try generating again</div>`;
-  if(Array.isArray(plan.side_projects)) attachBuildButtons(el, plan.side_projects);
+  if(Array.isArray(plan.side_projects)){
+    attachBuildButtons(el, plan.side_projects).then(builtSlugs=>{
+      lastRenderedSlugs = builtSlugs;
+      renderOlderBuilds();
+    });
+  }else{
+    lastRenderedSlugs = new Set();
+    renderOlderBuilds();
+  }
 }
 
 async function loadStoredPlan(){
@@ -1876,7 +1878,6 @@ async function showApp(){
   loadStance();
   loadCvStatus();
   loadGithubStatus();
-  renderPortfolio();
   loadStoredPlan();
   loadApiKeyStatus();
 
