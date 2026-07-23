@@ -681,8 +681,16 @@ async function getSkillTally(){
 }
 
 /* ---- portfolio: private per user ---- */
-async function addPortfolioRepo(title, url){
-  try{ await db.from('portfolio_repos').insert({ project_title: title, repo_url: url, user_id: currentUserId }); }catch(e){ console.error(e); }
+async function addPortfolioRepo(title, url, targetCompany, skillTargeted){
+  try{
+    await db.from('portfolio_repos').insert({
+      project_title: title,
+      repo_url: url,
+      target_company: targetCompany || null,
+      skill_targeted: skillTargeted || null,
+      user_id: currentUserId
+    });
+  }catch(e){ console.error(e); }
 }
 async function getPortfolio(){
   try{
@@ -1628,7 +1636,7 @@ async function buildProjectRepo(project, btnEl, linkEl){
       console.warn('repo created but README failed:', errBody.message);
     }
 
-    await addPortfolioRepo(project.project, repoData.html_url);
+    await addPortfolioRepo(project.project, repoData.html_url, project.target_company, project.skill_targeted);
 
     btnEl.style.display = 'none';
     linkEl.innerHTML = `<a href="${repoData.html_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>`;
@@ -1668,7 +1676,11 @@ async function renderPortfolio(){
     return;
   }
   el.innerHTML = entries.map(e=>`
-    <div class="source-row"><span class="source-dot linked"></span><a href="${e.repo_url}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(e.project_title)}</a></div>
+    <div class="source-row">
+      <span class="source-dot linked"></span><a href="${e.repo_url}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(e.project_title)}</a>
+      ${e.target_company && e.target_company.toLowerCase()!=='general' ? `<span class="tag" style="margin-left:8px;">${escapeHtml(e.target_company)}</span>` : ''}
+      ${e.skill_targeted ? `<span style="color:var(--text-dim);font-size:11px;margin-left:8px;">closes: ${escapeHtml(e.skill_targeted)}</span>` : ''}
+    </div>
   `).join('');
 }
 
