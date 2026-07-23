@@ -448,7 +448,7 @@
       <div class="desc">
         lets any side project spin up a real private repo + starter README in one click.
         needs a personal access token — <a href="https://github.com/settings/tokens/new?scopes=repo&description=job%20radar" target="_blank" style="color:var(--phosphor);">generate one here</a> (classic token, "repo" scope only is enough, nothing broader).
-        this goes straight from your browser to GitHub's API — the token is stored only in this artifact's private storage, never sent anywhere else, and you can revoke it on GitHub any time.
+        this goes straight from your browser to GitHub's API — the token is stored only in this browser's local storage, never sent anywhere else, and you can revoke it on GitHub any time.
       </div>
       <div class="row">
         <div class="field">
@@ -497,11 +497,11 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
 // Never put the current hash in emailRedirectTo — a prior #error=… poisons the next magic link.
 const AUTH_REDIRECT_URL = `${window.location.origin}${window.location.pathname}`;
 
-/* NOTE ON THE GITHUB TOKEN: it deliberately stays in window.storage (browser-local,
-   artifact-private), NOT in Supabase. The anon key above lives in this HTML file —
-   anyone who has the file can read/write every table via RLS "allow all" policies.
-   That's an acceptable tradeoff for job data on a personal tool, but a GitHub PAT
-   is a real credential and shouldn't sit in a DB reachable by that same exposed key. */
+/* NOTE ON THE GITHUB TOKEN: it deliberately stays in localStorage (this browser only),
+   NOT in Supabase. The anon key above lives in this HTML file — anyone who has the
+   file can read/write every table via RLS "allow all" policies. That's an acceptable
+   tradeoff for job data on a personal tool, but a GitHub PAT is a real credential and
+   shouldn't sit in a DB reachable by that same exposed key. */
 
 let currentUserId = null;
 
@@ -1539,8 +1539,8 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
 async function getGithubCreds(){
   let creds = { username: '', token: '' };
   try{
-    const res = await window.storage.get('github_creds', false);
-    if(res && res.value) creds = JSON.parse(res.value);
+    const raw = localStorage.getItem('github_creds');
+    if(raw) creds = JSON.parse(raw);
   }catch(e){}
   return creds;
 }
@@ -1551,7 +1551,7 @@ document.getElementById('ghSaveBtn').addEventListener('click', async ()=>{
   const status = document.getElementById('ghStatus');
   if(!username || !token){ status.textContent = 'need both fields'; return; }
   try{
-    await window.storage.set('github_creds', JSON.stringify({ username, token }), false);
+    localStorage.setItem('github_creds', JSON.stringify({ username, token }));
     status.textContent = `connected as ${username}`;
     document.getElementById('ghToken').value = '';
   }catch(e){ status.textContent = 'could not save'; }
