@@ -1676,6 +1676,44 @@ async function attachBuildButtons(container, projects){
   });
 }
 
+function parseOwnerRepo(repoUrl){
+  const m = (repoUrl||'').match(/github\.com\/([^\/]+)\/([^\/?#]+)/);
+  return m ? { owner: m[1], repo: m[2] } : null;
+}
+
+function activityBadge(pushedAt){
+  if(!pushedAt) return '';
+  const days = Math.floor((Date.now() - new Date(pushedAt).getTime()) / 86400000);
+  if(days < 14) return `<span style="color:var(--phosphor);">● active</span> — pushed ${days===0?'today':days+'d ago'}`;
+  if(days < 90) return `<span style="color:var(--text-dim);">○ quiet</span> — pushed ${days}d ago`;
+  return `<span style="color:var(--text-dim);">○ dormant</span> — pushed ${days}d ago`;
+}
+
+async function fetchRepoStats(owner, repo, token){
+  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' };
+  const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  if(!repoRes.ok) throw new Error(`repo lookup failed (${repoRes.status})`);
+  const repoData = await repoRes.json();
+
+  let commits = null, contributors = null;
+  const statsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/stats/contributors`, { headers });
+  if(statsRes.status === 200){
+    const stats = await statsRes.json();
+    if(Array.isArray(stats)){
+      contributors = stats.length;
+      commits = stats.reduce((sum,c)=> sum + (c.total||0), 0);
+    }
+  }
+  // 202 means GitHub is still computing stats — show what we have (age/activity) and skip commit/contributor counts this time.
+
+  return {
+    createdAt: repoData.created_at,
+    pushedAt: repoData.pushed_at,
+    commits,
+    contributors
+  };
+}
+
 async function renderPortfolio(){
   const el = document.getElementById('portfolioList');
   const entries = await getPortfolio();
@@ -1683,13 +1721,39 @@ async function renderPortfolio(){
     el.innerHTML = `<div class="empty">nothing built yet — hit "build this" on a project below</div>`;
     return;
   }
-  el.innerHTML = entries.map(e=>`
+  el.innerHTML = entries.map((e,i)=>`
     <div class="source-row">
       <span class="source-dot linked"></span><a href="${e.repo_url}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(e.project_title)}</a>
       ${e.target_company && e.target_company.toLowerCase()!=='general' ? `<span class="tag" style="margin-left:8px;">${escapeHtml(e.target_company)}</span>` : ''}
       ${e.skill_targeted ? `<span style="color:var(--text-dim);font-size:11px;margin-left:8px;">closes: ${escapeHtml(e.skill_targeted)}</span>` : ''}
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;" id="repoStats-${i}">loading activity…</div>
     </div>
   `).join('');
+
+  const creds = await getGithubCreds();
+  if(!creds.token){
+    entries.forEach((e,i)=>{ const el2 = document.getElementById(`repoStats-${i}`); if(el2) el2.textContent = ''; });
+    return;
+  }
+
+  entries.forEach(async (e, i)=>{
+    const statsEl = document.getElementById(`repoStats-${i}`);
+    if(!statsEl) return;
+    const parsed = parseOwnerRepo(e.repo_url);
+    if(!parsed){ statsEl.textContent = ''; return; }
+    try{
+      const stats = await fetchRepoStats(parsed.owner, parsed.repo, creds.token);
+      const ageDays = Math.floor((Date.now() - new Date(stats.createdAt).getTime()) / 86400000);
+      const parts = [`started ${ageDays}d ago`];
+      if(stats.commits != null) parts.push(`${stats.commits} commit${stats.commits===1?'':'s'}`);
+      if(stats.contributors != null) parts.push(`${stats.contributors} contributor${stats.contributors===1?'':'s'}`);
+      const badge = activityBadge(stats.pushedAt);
+      statsEl.innerHTML = `${escapeHtml(parts.join(' · '))}${badge ? ' · ' + badge : ''}`;
+    }catch(err){
+      console.warn('repo stats fetch failed:', err.message);
+      statsEl.textContent = 'activity data unavailable';
+    }
+  });
 }
 
 function renderPlan(plan){
