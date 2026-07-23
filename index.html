@@ -330,7 +330,7 @@
   <div id="viewWatchlist" style="display:none">
     <div class="panel">
       <h2>companies you're tracking</h2>
-      <div class="desc">add any company by name — this pulls their actual current open roles, not a generic scan.</div>
+      <div class="desc">add any company by name — this pulls their actual current open roles, not a generic scan. these, plus any company from a job you've starred in a scan, are what your 6-month plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
       <div class="chips" id="watchChips"></div>
       <div class="row" style="margin-bottom:14px;">
         <div class="field">
@@ -457,7 +457,7 @@
 
     <div class="panel">
       <h2>6-month plan</h2>
-      <div class="desc">one plan — built from your skills, everything tallied from real postings, and any companies you're tracking below get factored in automatically. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <div class="desc">one plan — built from your skills, everything tallied from real postings, and companies you're targeting (watchlist + any you've starred from a scan) get factored in automatically, spread across projects rather than just one. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
       <div class="status" id="planStatus"></div>
     </div>
@@ -900,7 +900,9 @@ Here is what real job postings scanned for her have actually been asking for, ac
 
 {{CANDIDATE_STANCE}}
 
-Companies she is specifically tracking and would prioritize getting into, if any: {{WATCHLIST_COMPANIES}}
+Companies she is specifically targeting — from her watchlist and from roles she's explicitly saved/starred from scans, if any: {{WATCHLIST_COMPANIES}}
+
+Of those, companies that already have a side project targeting them in her portfolio (deprioritize these — favor companies with no coverage yet, since projects accumulate across plan runs, not all at once): {{ALREADY_TARGETED}}
 
 Give her a concrete plan. Two parts:
 
@@ -910,7 +912,7 @@ Give her a concrete plan. Two parts:
 - REJECT: CRUD dashboards, "build a chatbot with an API," tutorial-following, anything where the interesting parts are pre-solved by a framework.
 - TARGET: e.g. benchmark inference cost/latency across quantization strategies on real hardware and write up the tradeoff curve; stand up a small self-hosted GPU inference cluster and load-test it under failure conditions; build a data pipeline that ingests real messy data at volume and survives adversarial edge cases; implement a scaled-down MLOps loop (model versioning, canary rollout, automatic rollback on a defined metric) end to end; instrument and optimize a real system's cost or latency and show the before/after numbers.
 - Each project should build on what she already knows how to do (hands-on hardware/systems builder, not a from-scratch beginner) and push into infra/MLOps/systems territory she hasn't touched yet.
-- If she has tracked companies listed above, aim at least one project specifically at what those companies ask for, and set its target_company to that company name. Otherwise use "general" for target_company on every project.
+- If she has companies she's targeting listed above, spread the projects across as many of them as this plan's project count allows — favor companies not already marked "already has a project" over ones that are, so distinct companies get covered as she runs more plans over time. Set each such project's target_company to the specific company name it's aimed at. Only use "general" for a project once every targeted company has at least one project this cycle, or if she isn't targeting anyone yet.
 These are private builds, not public posts: no requirement to publish, announce, or share anywhere until she's actually in an interview room. Scope big enough to be genuinely impressive — up to a few weeks of real work is fine, this is not about speed.
 
 Return ONLY raw JSON, no markdown fences, no preamble, never use double-quote characters inside string values (use single quotes if quoting something), in this exact shape:
@@ -939,7 +941,7 @@ Cap at 8 total results across all companies.`;
 
 const PROMPT_DEFS = [
   { key: 'scan', label: 'scan — finds & scores jobs', default: DEFAULT_PROMPT_SCAN, placeholders: ['FOCUS_AREAS','KEYWORDS','LOCATION','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] },
-  { key: 'plan', label: 'six-month plan — skill gaps + side projects (one unified plan, tracked companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES'] },
+  { key: 'plan', label: 'six-month plan — skill gaps + side projects (one unified plan, targeted companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES','ALREADY_TARGETED'] },
   { key: 'watchscan', label: 'watchlist — finds & scores roles at named companies', default: DEFAULT_PROMPT_WATCHSCAN, placeholders: ['WATCHLIST_COMPANIES','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] }
 ];
 
@@ -1505,12 +1507,18 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   const { tally } = await getSkillTally();
   const topAsks = Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([s,c])=>`${s} (seen ${c}x)`).join(', ') || 'no scan data yet — using general market knowledge instead';
 
+  const savedJobCompanies = Object.values(savedJobs).map(j=>j.company).filter(Boolean);
+  const targetCompanies = [...new Set([...watchCompanies, ...savedJobCompanies])];
+  const portfolio = await getPortfolio();
+  const alreadyTargeted = [...new Set(portfolio.map(p=>p.target_company).filter(c=>c && c.toLowerCase()!=='general'))];
+
   const planTemplate = await getPromptTemplate('plan');
   const prompt = fillTemplate(planTemplate, {
     CANDIDATE_PROFILE: skills,
     MARKET_TALLY: topAsks,
     CANDIDATE_STANCE: stance,
-    WATCHLIST_COMPANIES: watchCompanies.length ? watchCompanies.join(', ') : 'none tracked yet'
+    WATCHLIST_COMPANIES: targetCompanies.length ? targetCompanies.join(', ') : 'none tracked yet',
+    ALREADY_TARGETED: alreadyTargeted.length ? alreadyTargeted.join(', ') : 'none yet'
   });
 
   try{
