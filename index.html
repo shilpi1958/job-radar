@@ -130,6 +130,16 @@
     font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--text-dim);
     text-transform:uppercase;letter-spacing:1.5px;margin:28px 0 -6px 4px;
   }
+  .info-toggle{
+    background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
+    padding:0;margin-left:4px;vertical-align:middle;
+  }
+  .info-toggle:hover{color:var(--phosphor);}
+  .link-btn{
+    background:none;border:none;color:var(--phosphor);cursor:pointer;font-size:12px;
+    padding:0;text-decoration:underline;margin-left:10px;
+  }
+  .link-btn:hover{color:#7bffb4;}
   .view-toggle{display:flex;gap:6px;font-size:11px;}
   .view-toggle button{
     background:none;border:1px solid var(--panel-line);color:var(--text-dim);
@@ -361,18 +371,16 @@
 
   <div id="viewProfile" style="display:none">
     <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:rgba(93,255,158,0.08);">
-      <h2>▸ welcome — a few quick things before your first scan</h2>
+      <h2>▸ welcome — 3 quick things first</h2>
       <div class="desc" style="color:var(--text);">
-        every job gets scored against your own goals, not a generic checklist — so we need
-        those first. <b>1.</b> what you're looking for, right below — click "update my scoring"
-        after, so it actually takes effect. <b>2.</b> your proof points (optional but helps).
-        <b>3.</b> further down this page, connect an AI key — required, it's what activates scanning.
+        <b>1.</b> what you're looking for, below — click "update my scoring." <b>2.</b> your proof points (optional).
+        <b>3.</b> further down, connect an AI key — required to scan.
       </div>
     </div>
     <div class="section-label">your background</div>
     <div class="panel">
       <h2>1. what you're looking for</h2>
-      <div class="desc">tell us in plain language: what kind of role, what about your background matters, any hard no's, location/remote needs. this is what scoring is actually based on — not a generic checklist. saved automatically; click "update my scoring" below whenever you change it so scans start using the new version.</div>
+      <div class="desc">plain language: role, background, hard no's, location. this is what scoring is based on. saved automatically — click "update my scoring" after any change.</div>
       <textarea id="stanceBox" placeholder="e.g. I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."></textarea>
       <div class="save-hint" id="stanceSaveHint"></div>
       <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
@@ -381,14 +389,14 @@
 
     <div class="panel">
       <h2>2. what you've got</h2>
-      <div class="desc">your proof points — edit freely, this feeds the gap analysis and plan below. saved automatically.</div>
+      <div class="desc">your proof points — feeds the gap analysis and plan. saved automatically.</div>
       <textarea id="skillsBox"></textarea>
       <div class="save-hint" id="saveHint"></div>
     </div>
 
     <div class="panel">
       <h2>upload your CV</h2>
-      <div class="desc">optional, but it's the real thing — pulls actual text out of your CV and feeds it into every scan and plan alongside the box above. .pdf, .docx, or .txt. stays private to this artifact, never leaves your storage.</div>
+      <div class="desc">optional. pulls text from .pdf/.docx/.txt into every scan and plan. never leaves your storage.</div>
       <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <label for="cvUpload" class="scan" style="display:inline-block;cursor:pointer;">▸ choose file</label>
@@ -401,50 +409,61 @@
     <div class="section-label">connections</div>
 
     <div class="panel" style="border-color:var(--phosphor-dim);">
-      <h2>▸ connect your AI keys</h2>
-      <div class="desc">
+      <h2>▸ AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
+      <div class="desc" id="apiKeyInfoText" style="display:none;">
         required — nothing that calls the model works without a key for the provider you pick below.
         both keys are stored only in <b>this browser</b>, never written to Supabase.
         Claude calls go straight to Anthropic; OpenAI calls go browser → our auth-gated proxy → OpenAI (your key is sent in the request header only, not stored on the server).
       </div>
-      <div class="row">
-        <div class="field" style="max-width:220px;">
-          <label for="llmProvider">provider</label>
-          <select id="llmProvider">
-            <option value="claude">Claude (Anthropic)</option>
-            <option value="openai">OpenAI</option>
-          </select>
+      <div id="apiKeySummary" style="display:none;">
+        <span id="apiKeySummaryText" style="font-size:12px;color:var(--text);"></span>
+        <button class="link-btn" id="apiKeyChangeBtn" type="button">change</button>
+      </div>
+      <div id="apiKeyForm">
+        <div class="row">
+          <div class="field" style="max-width:220px;">
+            <label for="llmProvider">provider</label>
+            <select id="llmProvider">
+              <option value="claude">Claude (Anthropic)</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
         </div>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label for="apiKeyInput">Claude API key — <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a></label>
-          <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+        <div class="row" id="claudeKeyRow">
+          <div class="field">
+            <label for="apiKeyInput">Claude API key — <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a></label>
+            <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+          </div>
         </div>
-      </div>
-      <div class="actions" style="margin-bottom:14px;">
-        <button class="scan secondary" id="apiKeySaveBtn">▸ save Claude key</button>
-        <span id="apiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
-      </div>
-      <div class="row">
-        <div class="field">
-          <label for="openaiKeyInput">OpenAI API key — <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--phosphor);">platform.openai.com</a></label>
-          <input type="password" id="openaiKeyInput" placeholder="sk-...">
+        <div class="actions" id="claudeKeyActions" style="margin-bottom:14px;">
+          <button class="scan secondary" id="apiKeySaveBtn">▸ save Claude key</button>
+          <span id="apiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
         </div>
-      </div>
-      <div class="actions">
-        <button class="scan secondary" id="openaiKeySaveBtn">▸ save OpenAI key</button>
-        <span id="openaiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
+        <div class="row" id="openaiKeyRow">
+          <div class="field">
+            <label for="openaiKeyInput">OpenAI API key — <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--phosphor);">platform.openai.com</a></label>
+            <input type="password" id="openaiKeyInput" placeholder="sk-...">
+          </div>
+        </div>
+        <div class="actions" id="openaiKeyActions">
+          <button class="scan secondary" id="openaiKeySaveBtn">▸ save OpenAI key</button>
+          <span id="openaiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
+        </div>
       </div>
     </div>
 
     <div class="panel">
-      <h2>connect GitHub</h2>
-      <div class="desc">
+      <h2>GitHub <button class="info-toggle" id="ghInfoBtn" title="what this is for / where it's stored" type="button">ⓘ</button></h2>
+      <div class="desc" id="ghInfoText" style="display:none;">
         lets any side project spin up a real private repo + starter README in one click.
         needs a personal access token — <a href="https://github.com/settings/tokens/new?scopes=repo&description=job%20radar" target="_blank" style="color:var(--phosphor);">generate one here</a> (classic token, "repo" scope only is enough, nothing broader).
         this goes straight from your browser to GitHub's API — the token is stored only in this browser's local storage, never sent anywhere else, and you can revoke it on GitHub any time.
       </div>
+      <div id="ghSummary" style="display:none;">
+        <span id="ghSummaryText" style="font-size:12px;color:var(--text);"></span>
+        <button class="link-btn" id="ghChangeBtn" type="button">change</button>
+      </div>
+      <div id="ghForm">
       <div class="row">
         <div class="field">
           <label>GitHub username</label>
@@ -458,6 +477,7 @@
       <div class="actions">
         <button class="scan secondary" id="ghSaveBtn">▸ save</button>
         <span id="ghStatus" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
       </div>
     </div>
   </div>
@@ -792,7 +812,7 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
 }
 document.getElementById('llmProvider').addEventListener('change', (e)=>{
   setProvider(e.target.value);
-  loadApiKeyStatus();
+  updateProviderRowVisibility();
 });
 document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('apiKeyInput').value.trim();
@@ -801,6 +821,7 @@ document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   localStorage.setItem('anthropic_api_key', val);
   document.getElementById('apiKeyInput').value = '';
   status.textContent = 'saved — stored in this browser only';
+  loadApiKeyStatus();
 });
 document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('openaiKeyInput').value.trim();
@@ -809,13 +830,40 @@ document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   localStorage.setItem('openai_api_key', val);
   document.getElementById('openaiKeyInput').value = '';
   status.textContent = 'saved — stored in this browser only';
+  loadApiKeyStatus();
 });
+document.getElementById('apiKeyInfoBtn').addEventListener('click', ()=>{
+  const el = document.getElementById('apiKeyInfoText');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+});
+document.getElementById('apiKeyChangeBtn').addEventListener('click', ()=>{
+  document.getElementById('apiKeySummary').style.display = 'none';
+  document.getElementById('apiKeyForm').style.display = '';
+});
+function updateProviderRowVisibility(){
+  const provider = getProvider();
+  document.getElementById('claudeKeyRow').style.display = provider === 'claude' ? '' : 'none';
+  document.getElementById('claudeKeyActions').style.display = provider === 'claude' ? '' : 'none';
+  document.getElementById('openaiKeyRow').style.display = provider === 'openai' ? '' : 'none';
+  document.getElementById('openaiKeyActions').style.display = provider === 'openai' ? '' : 'none';
+}
 function loadApiKeyStatus(){
   document.getElementById('llmProvider').value = getProvider();
   document.getElementById('apiKeyStatus').textContent =
     getAnthropicKey() ? 'connected — stored in this browser' : 'not connected yet';
   document.getElementById('openaiKeyStatus').textContent =
     getOpenAIKey() ? 'connected — stored in this browser' : 'not connected yet';
+  updateProviderRowVisibility();
+
+  const connected = getAnthropicKey() ? 'Claude' : (getOpenAIKey() ? 'OpenAI' : null);
+  if(connected){
+    document.getElementById('apiKeySummaryText').textContent = `✓ ${connected} connected`;
+    document.getElementById('apiKeySummary').style.display = '';
+    document.getElementById('apiKeyForm').style.display = 'none';
+  }else{
+    document.getElementById('apiKeySummary').style.display = 'none';
+    document.getElementById('apiKeyForm').style.display = '';
+  }
 }
 
 const activeTags = new Set(['deeptech','builder']);
@@ -1534,7 +1582,16 @@ document.getElementById('ghSaveBtn').addEventListener('click', async ()=>{
     localStorage.setItem('github_creds', JSON.stringify({ username, token }));
     status.textContent = `connected as ${username}`;
     document.getElementById('ghToken').value = '';
+    loadGithubStatus();
   }catch(e){ status.textContent = 'could not save'; }
+});
+document.getElementById('ghInfoBtn').addEventListener('click', ()=>{
+  const el = document.getElementById('ghInfoText');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+});
+document.getElementById('ghChangeBtn').addEventListener('click', ()=>{
+  document.getElementById('ghSummary').style.display = 'none';
+  document.getElementById('ghForm').style.display = '';
 });
 
 async function loadGithubStatus(){
@@ -1542,6 +1599,12 @@ async function loadGithubStatus(){
   if(creds.username){
     document.getElementById('ghUsername').value = creds.username;
     document.getElementById('ghStatus').textContent = `connected as ${creds.username}`;
+    document.getElementById('ghSummaryText').textContent = `✓ connected as ${creds.username}`;
+    document.getElementById('ghSummary').style.display = '';
+    document.getElementById('ghForm').style.display = 'none';
+  }else{
+    document.getElementById('ghSummary').style.display = 'none';
+    document.getElementById('ghForm').style.display = '';
   }
 }
 
