@@ -342,23 +342,23 @@
   <div id="viewWatchlist" style="display:none">
     <div class="panel">
       <h2>companies you're tracking</h2>
-      <div class="desc">built from what you find, not typed from memory — hit "+ watchlist" on a result in the scan tab to add a company here. these are what your 6-month plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
+      <div class="desc">built from what you find, not typed from memory — hit "+ watchlist" on a result in the scan tab to add a company here. these are what your proof-of-work plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
       <div class="chips" id="watchChips"></div>
     </div>
 
     <div id="watchResults"></div>
 
-    <div class="desc" style="text-align:center;margin-top:4px;">roles found here feed straight into the one shared six-month plan — no separate plan to generate here anymore.</div>
+    <div class="desc" style="text-align:center;margin-top:4px;">roles found here feed straight into the one shared proof-of-work plan — no separate plan to generate here anymore.</div>
   </div>
 
   <div id="viewProfile" style="display:none">
-    <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:var(--phosphor-dim);">
-      <h2>▸ welcome — 2 quick things before your first scan</h2>
-      <div class="desc">
+    <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:rgba(93,255,158,0.08);">
+      <h2>▸ welcome — a few quick things before your first scan</h2>
+      <div class="desc" style="color:var(--text);">
         every job gets scored against your own goals, not a generic checklist — so we need
-        those first. <b>1.</b> what you're looking for, below — click "update my scoring"
+        those first. <b>1.</b> what you're looking for, right below — click "update my scoring"
         after, so it actually takes effect. <b>2.</b> your proof points (optional but helps).
-        <b>3.</b> connect an AI key below, which activates scanning.
+        <b>3.</b> further down this page, connect an AI key — required, it's what activates scanning.
       </div>
     </div>
     <div class="panel">
@@ -899,7 +899,7 @@ Be terse everywhere — this has to fit a strict output budget. Exactly 3 skill_
 
 const PROMPT_DEFS = [
   { key: 'scan', label: 'scan — finds & scores jobs (optionally scoped to one company)', default: DEFAULT_PROMPT_SCAN, placeholders: ['FOCUS_AREAS','COMPANY_FILTER','KEYWORDS','LOCATION','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] },
-  { key: 'plan', label: 'six-month plan — skill gaps + side projects (one unified plan, targeted companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES','ALREADY_TARGETED'] }
+  { key: 'plan', label: 'proof-of-work plan — skill gaps + side projects (one unified plan, targeted companies included automatically)', default: DEFAULT_PROMPT_PLAN, placeholders: ['CANDIDATE_PROFILE','MARKET_TALLY','CANDIDATE_STANCE','WATCHLIST_COMPANIES','ALREADY_TARGETED'] }
 ];
 
 async function getPromptTemplate(key){
@@ -1446,7 +1446,7 @@ async function renderGapBars(){
     </div>`).join('');
 }
 
-/* ---- profile: generate 6-month plan ---- */
+/* ---- profile: generate proof-of-work plan ---- */
 document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   if(!requireApiKey()) return;
   const btn = document.getElementById('genPlanBtn');
