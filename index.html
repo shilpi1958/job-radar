@@ -310,7 +310,7 @@
 
   <div class="panel">
     <h2>◆ focus areas</h2>
-    <div class="desc">click a chip to toggle which areas this scan favors · click the ✕ to remove it entirely (you can always re-add it as a custom keyword below)</div>
+    <div class="desc">click a chip to toggle it · ✕ removes it (re-add anytime below)</div>
     <div class="chips" id="chips">
       <span class="chip" data-tag="healthcare"><span class="chip-label">healthcare AI / EHR</span><span class="chip-x">✕</span></span>
       <span class="chip active" data-tag="deeptech"><span class="chip-label">robotics / hardware / deep tech</span><span class="chip-x">✕</span></span>
@@ -329,7 +329,7 @@
     <div class="actions">
       <button class="scan" id="scanBtn">▸ run scan</button>
     </div>
-    <div class="desc" style="margin-top:6px;">live web search + model call on your own API key — typically 30-60s, real spend each time (except an exact repeat search within a week, which just asks first instead).</div>
+    <div class="desc" style="margin-top:6px;">live search, ~30-60s, real spend (repeat search within a week just asks first).</div>
   </div>
 
   <div class="status" id="status"></div>
@@ -337,7 +337,7 @@
 
   <div class="panel">
     <h2>◆ sources this scan actually uses</h2>
-    <div class="desc">no black box — this is the real list, ordered by priority. each result above shows which one it came from.</div>
+    <div class="desc">ordered by priority. each result shows which one it came from.</div>
     <div class="source-list">
       <div class="source-row"><span class="source-dot live"></span><b>live web search</b> — company career pages, checked first, direct source</div>
       <div class="source-row"><span class="source-dot live"></span><b>Instahyre, Cutshort</b> — India-focused early-stage/technical roles, weighted heavily</div>
@@ -352,21 +352,21 @@
   </div>
 
   <div class="foot-note">
-    match score weighs domain fit, ownership/stage, location, and — the important one — whether the posting actually gates on developer experience vs. just wants engineering literacy. gated roles are flagged, not hidden.<br>
-    every scan adds to a permanent list, deduped by company+role — nothing gets discarded. running the exact same search again within a week just asks first, since postings don't move that fast.
+    match score weighs domain fit, ownership/stage, location, and whether it gates on developer experience — flagged, not hidden.<br>
+    every scan adds to a permanent list, deduped by company+role. nothing gets discarded.
   </div>
   </div>
 
   <div id="viewWatchlist" style="display:none">
     <div class="panel">
       <h2>companies you're tracking</h2>
-      <div class="desc">built from what you find, not typed from memory — hit "+ watchlist" on a result in the scan tab to add a company here. these are what your proof-of-work plan targets — remove ones you're no longer pursuing to keep the plan focused; a handful at a time (~5) tends to work best, though nothing here is enforced.</div>
+      <div class="desc">hit "+ watchlist" on a scan result to add one. these are what your plan targets — a handful at a time (~5) works best.</div>
       <div class="chips" id="watchChips"></div>
     </div>
 
     <div id="watchResults"></div>
 
-    <div class="desc" style="text-align:center;margin-top:4px;">roles found here feed straight into the one shared proof-of-work plan — no separate plan to generate here anymore.</div>
+    <div class="desc" style="text-align:center;margin-top:4px;">roles found here feed straight into the proof-of-work plan.</div>
   </div>
 
   <div id="viewProfile" style="display:none">
@@ -485,13 +485,13 @@
   <div id="viewPlan" style="display:none">
     <div class="panel">
       <h2>what the market keeps asking for</h2>
-      <div class="desc">tallied live from every scan you've run, in "scan" and "watchlist" both — one shared signal, not split across tabs. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
+      <div class="desc">tallied live from every scan. the more you scan, the sharper this gets. <span id="scanTally">0 postings analyzed so far.</span></div>
       <div id="gapBars"><div class="empty">run a few scans first — this fills in from real postings, not guesses.</div></div>
     </div>
 
     <div class="panel">
       <h2>proof-of-work plan</h2>
-      <div class="desc">concrete projects that prove you're ready — not a generic roadmap. built from your skills, everything tallied from real postings, and companies on your watchlist get factored in automatically, spread across projects rather than just one. cherry-pick one, hit "build this," and it becomes a real repo right here — no separate portfolio to check. private builds only — nothing here requires publishing or announcing anything before you're actually in an interview.</div>
+      <div class="desc">concrete projects, built from your skills and watchlist companies. hit "build this" and it becomes a real repo, right here. private — nothing to publish or announce.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
       <div class="status" id="planStatus"></div>
     </div>
@@ -504,7 +504,7 @@
     <div class="panel">
       <h2>✎ edit the actual prompts</h2>
       <div class="desc">
-        these are the real prompt templates sent to the model — not a simplified version. edit freely; use the <code>{{PLACEHOLDER}}</code> tokens exactly as shown to keep the dynamic parts working. saved changes apply on your next scan/plan run. "reset" restores the built-in version.
+        real templates sent to the model. keep <code>{{PLACEHOLDER}}</code> tokens intact. changes apply next run — "reset" restores default.
       </div>
     </div>
     <div id="promptEditors"></div>
