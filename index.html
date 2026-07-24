@@ -284,8 +284,8 @@
 
   <div class="scope">
     <div>
-      <h1><span class="dot"></span>job radar</h1>
-      <div class="sub">scanning + scoring against your actual profile — results stack permanently, nothing gets thrown away</div>
+      <h1><span class="dot"></span><span id="viewTitle">scan</span></h1>
+      <div class="sub" id="viewSub">scanning + scoring against your actual profile — results stack permanently, nothing gets thrown away</div>
     </div>
   </div>
 
@@ -1260,6 +1260,13 @@ document.getElementById('scanBtn').addEventListener('click', runScan);
 
 /* ---- nav ---- */
 const VIEWS = ['scan','watch','profile','plan','settings'];
+const VIEW_TITLES = {
+  scan: ['scan', 'scanning + scoring against your actual profile — results stack permanently, nothing gets thrown away'],
+  watch: ['watchlist', 'companies you\'re tracking — these feed straight into your proof-of-work plan'],
+  profile: ['profile', 'your background, and what you\'re looking for — this is what scoring is based on'],
+  plan: ['proof-of-work plan', 'concrete projects that prove you\'re ready, built from your skills and watchlist'],
+  settings: ['prompts', 'the actual templates sent to the model, editable']
+};
 function switchView(view){
   document.getElementById('viewScan').style.display = view==='scan' ? '' : 'none';
   document.getElementById('viewWatchlist').style.display = view==='watch' ? '' : 'none';
@@ -1271,6 +1278,9 @@ function switchView(view){
   document.getElementById('navProfile').classList.toggle('active', view==='profile');
   document.getElementById('navPlan').classList.toggle('active', view==='plan');
   document.getElementById('navSettings').classList.toggle('active', view==='settings');
+  const [title, sub] = VIEW_TITLES[view] || VIEW_TITLES.scan;
+  document.getElementById('viewTitle').textContent = title;
+  document.getElementById('viewSub').textContent = sub;
   if(view === 'watch') renderWatchResults();
   if(view === 'plan'){ renderGapBars(); renderOlderBuilds(); }
   if(view === 'settings') renderPromptEditors();
