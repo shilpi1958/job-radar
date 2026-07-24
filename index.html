@@ -30,8 +30,15 @@
       var(--bg);
     color:var(--text);
     font-family:'JetBrains Mono', monospace;
+    font-size:12px;
     min-height:100vh;
   }
+  h1,h2,h3{font-family:'Space Grotesk',sans-serif;}
+  .micro{font-size:10px;}
+  .body-text{font-size:12px;}
+  .heading{font-size:14px;}
+  .hint{font-size:12px;color:var(--text-dim);}
+  .subheading{font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:18px 0 10px;}
   .shell{display:flex;min-height:100vh;}
   .sidenav{
     width:190px;flex-shrink:0;
@@ -73,7 +80,7 @@
     color:var(--phosphor);
     letter-spacing:0.5px;
   }
-  .scope .sub{color:var(--text-dim);font-size:11px;margin-top:4px;letter-spacing:0.5px;}
+  .scope .sub{color:var(--text-dim);font-size:12px;margin-top:4px;letter-spacing:0.5px;}
   .dot{
     width:8px;height:8px;border-radius:50%;background:var(--phosphor);
     box-shadow:0 0 8px var(--phosphor);display:inline-block;margin-right:8px;
@@ -94,7 +101,7 @@
   label{display:block;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
   input[type=text], input[type=password], select{
     width:100%;background:#0b0e0c;border:1px solid var(--panel-line);
-    color:var(--text);padding:9px 10px;font-family:inherit;font-size:13px;
+    color:var(--text);padding:9px 10px;font-family:inherit;font-size:12px;
     border-radius:3px;outline:none;
   }
   input[type=text]:focus, input[type=password]:focus, select:focus{border-color:var(--phosphor-dim);}
@@ -103,7 +110,7 @@
   .chip{
     display:inline-flex;align-items:center;gap:7px;
     border:1px solid var(--panel-line);background:#0b0e0c;color:var(--text-dim);
-    font-family:inherit;font-size:11px;padding:7px 8px 7px 12px;border-radius:20px;
+    font-family:inherit;font-size:12px;padding:7px 8px 7px 12px;border-radius:20px;
     transition:all .15s;
   }
   .chip .chip-label{cursor:pointer;}
@@ -117,7 +124,7 @@
   .actions{display:flex;align-items:center;gap:12px;justify-content:space-between;}
   button.scan{
     background:var(--phosphor);color:#08130c;border:none;font-family:'Space Grotesk',sans-serif;
-    font-weight:700;font-size:13px;padding:10px 22px;border-radius:3px;cursor:pointer;
+    font-weight:700;font-size:12px;padding:10px 22px;border-radius:3px;cursor:pointer;
     letter-spacing:0.5px;
   }
   button.scan:hover{background:#7bffb4;}
@@ -127,11 +134,11 @@
   }
   button.scan.secondary:hover{background:rgba(93,255,158,0.08);border-color:var(--phosphor);}
   .section-label{
-    font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--text-dim);
+    font-family:'Space Grotesk',sans-serif;font-size:10px;color:var(--text-dim);
     text-transform:uppercase;letter-spacing:1.5px;margin:28px 0 -6px 4px;
   }
   .info-toggle{
-    background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
+    background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;
     padding:0;margin-left:4px;vertical-align:middle;
   }
   .info-toggle:hover{color:var(--phosphor);}
@@ -140,14 +147,8 @@
     padding:0;text-decoration:underline;margin-left:10px;
   }
   .link-btn:hover{color:#7bffb4;}
-  .view-toggle{display:flex;gap:6px;font-size:11px;}
-  .view-toggle button{
-    background:none;border:1px solid var(--panel-line);color:var(--text-dim);
-    padding:7px 12px;border-radius:3px;cursor:pointer;font-family:inherit;
-  }
-  .view-toggle button.active{color:var(--amber);border-color:var(--amber);}
 
-  .status{font-size:11px;color:var(--text-dim);margin-bottom:14px;min-height:16px;}
+  .status{font-size:12px;color:var(--text-dim);margin-bottom:14px;min-height:16px;}
   .status.scanning{color:var(--amber);}
   .status.scanning::after{content:'';animation:dots 1.2s steps(4,end) infinite;}
   @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
@@ -161,13 +162,13 @@
   }
   .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
   .card h3{
-    font-family:'Space Grotesk',sans-serif;font-size:15px;margin:0 0 4px;color:var(--text);font-weight:600;
+    font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 4px;color:var(--text);font-weight:600;
   }
   .card .company{color:var(--phosphor);font-size:12px;font-weight:600;}
-  .card .meta{color:var(--text-dim);font-size:11px;margin-top:2px;}
+  .card .meta{color:var(--text-dim);font-size:12px;margin-top:2px;}
   .card .fit{font-size:12px;color:var(--text);margin-top:10px;line-height:1.5;border-top:1px dashed var(--panel-line);padding-top:10px;}
   .card .fit b{color:var(--amber);}
-  .card .gate{font-size:11px;color:var(--phosphor);margin-top:6px;line-height:1.5;}
+  .card .gate{font-size:12px;color:var(--phosphor);margin-top:6px;line-height:1.5;}
   .card .gate.blocked{color:var(--danger);}
   .card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
 
@@ -175,7 +176,7 @@
   .meter-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
   .meter{flex:1;height:8px;background:#0b0e0c;border:1px solid var(--panel-line);border-radius:2px;overflow:hidden;position:relative;}
   .meter-fill{height:100%;border-radius:1px;transition:width .4s ease;}
-  .meter-score{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;min-width:34px;text-align:right;}
+  .meter-score{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;min-width:34px;text-align:right;}
   .score-high{color:var(--phosphor);}
   .score-mid{color:var(--amber);}
   .score-low{color:var(--danger);}
@@ -184,15 +185,15 @@
     width:30px;height:30px;border-radius:3px;cursor:pointer;font-size:14px;
   }
   .star.on{color:var(--amber);border-color:var(--amber);}
-  .broken-btn{font-size:11px;}
+  .broken-btn{font-size:12px;}
   .broken-btn:hover{color:var(--danger);border-color:var(--danger);background:rgba(255,107,94,0.1);}
   .star.watch-btn{
-    width:auto;height:auto;padding:6px 10px;font-size:11px;white-space:nowrap;
+    width:auto;height:auto;padding:6px 10px;font-size:12px;white-space:nowrap;
   }
   .star.watch-btn:hover{color:var(--phosphor);border-color:var(--phosphor);background:rgba(93,255,158,0.08);}
   .star.watch-btn:disabled{cursor:default;color:var(--phosphor);border-color:var(--phosphor-dim);opacity:0.7;}
   a.apply{
-    color:var(--phosphor);text-decoration:none;font-size:11px;border:1px solid var(--phosphor-dim);
+    color:var(--phosphor);text-decoration:none;font-size:12px;border:1px solid var(--phosphor-dim);
     padding:6px 10px;border-radius:3px;white-space:nowrap;
   }
   a.apply:hover{background:rgba(93,255,158,0.08);}
@@ -221,7 +222,7 @@
   .panel h2{
     font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 4px;color:var(--text);
   }
-  .panel .desc{font-size:11px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;}
+  .panel .desc{font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.5;}
   .save-hint{font-size:10px;color:var(--phosphor-dim);margin-top:6px;height:14px;}
 
   .gap-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
@@ -238,7 +239,7 @@
     border:1px solid var(--amber);display:inline-block;padding:2px 7px;border-radius:10px;margin-bottom:8px;
   }
   .plan-card.content-type .tag{color:var(--phosphor);border-color:var(--phosphor-dim);}
-  .plan-card h4{font-family:'Space Grotesk',sans-serif;font-size:13px;margin:0 0 6px;color:var(--text);}
+  .plan-card h4{font-family:'Space Grotesk',sans-serif;font-size:14px;margin:0 0 6px;color:var(--text);}
   .plan-card p{font-size:12px;color:var(--text-dim);margin:0;line-height:1.6;}
   .plan-card p b{color:var(--text);}
   .cadence-note{
@@ -278,7 +279,7 @@
     <button id="navProfile">◆ profile</button>
     <button id="navSettings">⚙ prompts</button>
     <div style="flex:1;"></div>
-    <button id="signOutBtn" style="color:var(--text-dim);font-size:11px;">↩ sign out</button>
+    <button id="signOutBtn" class="hint">↩ sign out</button>
   </nav>
   <main class="wrap">
 
@@ -384,7 +385,7 @@
       <textarea id="stanceBox" placeholder="e.g. I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."></textarea>
       <div class="save-hint" id="stanceSaveHint"></div>
       <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
-      <span id="rubricStatus" style="font-size:11px;color:var(--text-dim);"></span>
+      <span id="rubricStatus" class="hint"></span>
     </div>
 
     <div class="panel">
@@ -437,7 +438,7 @@
         </div>
         <div class="actions" id="claudeKeyActions" style="margin-bottom:14px;">
           <button class="scan secondary" id="apiKeySaveBtn">▸ save Claude key</button>
-          <span id="apiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
+          <span id="apiKeyStatus" class="hint"></span>
         </div>
         <div class="row" id="openaiKeyRow">
           <div class="field">
@@ -447,7 +448,7 @@
         </div>
         <div class="actions" id="openaiKeyActions">
           <button class="scan secondary" id="openaiKeySaveBtn">▸ save OpenAI key</button>
-          <span id="openaiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
+          <span id="openaiKeyStatus" class="hint"></span>
         </div>
       </div>
     </div>
@@ -476,7 +477,7 @@
       </div>
       <div class="actions">
         <button class="scan secondary" id="ghSaveBtn">▸ save</button>
-        <span id="ghStatus" style="font-size:11px;color:var(--text-dim);"></span>
+        <span id="ghStatus" class="hint"></span>
       </div>
       </div>
     </div>
@@ -1783,13 +1784,13 @@ async function renderOlderBuilds(){
   const entries = await getPortfolio();
   const older = entries.filter(e => !lastRenderedSlugs.has(slugify(e.project_title)));
   if(!older.length){ el.innerHTML = ''; return; }
-  el.innerHTML = `<h2 style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:18px 0 10px;">already built — from an earlier plan</h2>` +
+  el.innerHTML = `<h2 class="subheading">already built — from an earlier plan</h2>` +
     older.map((e,i)=>`
     <div class="source-row">
       <span class="source-dot linked"></span><a href="${e.repo_url}" target="_blank" rel="noopener" style="color:var(--text);">${escapeHtml(e.project_title)}</a>
       ${e.target_company && e.target_company.toLowerCase()!=='general' ? `<span class="tag" style="margin-left:8px;">${escapeHtml(e.target_company)}</span>` : ''}
-      ${e.skill_targeted ? `<span style="color:var(--text-dim);font-size:11px;margin-left:8px;">closes: ${escapeHtml(e.skill_targeted)}</span>` : ''}
-      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;" id="olderRepoStats-${i}">loading activity…</div>
+      ${e.skill_targeted ? `<span class="hint" style="margin-left:8px;">closes: ${escapeHtml(e.skill_targeted)}</span>` : ''}
+      <div class="hint" style="margin-top:4px;" id="olderRepoStats-${i}">loading activity…</div>
     </div>
   `).join('');
   older.forEach((e,i)=>{
@@ -1805,7 +1806,7 @@ function renderPlan(plan){
     html += `<div class="cadence-note">⏱ ${escapeHtml(plan.cadence)}</div>`;
   }
   if(Array.isArray(plan.skill_gaps) && plan.skill_gaps.length){
-    html += `<h2 style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:0 0 10px;">skill gaps to close</h2>`;
+    html += `<h2 class="subheading">skill gaps to close</h2>`;
     html += plan.skill_gaps.map(g=>`
       <div class="plan-card">
         <span class="tag">build</span>
@@ -1815,7 +1816,7 @@ function renderPlan(plan){
       </div>`).join('');
   }
   if(Array.isArray(plan.side_projects) && plan.side_projects.length){
-    html += `<h2 style="font-family:'Space Grotesk',sans-serif;font-size:14px;color:var(--text);margin:18px 0 10px;">side projects — private proof of work</h2>`;
+    html += `<h2 class="subheading">side projects — private proof of work</h2>`;
     html += plan.side_projects.map((p,idx)=>`
       <div class="plan-card content-type">
         <span class="tag">${escapeHtml(p.effort||'project')}${p.target_company && p.target_company.toLowerCase()!=='general' ? ' · ' + escapeHtml(p.target_company) : ''}</span>
@@ -1827,7 +1828,7 @@ function renderPlan(plan){
           <button class="star build-repo-btn" data-idx="${idx}" style="width:auto;padding:0 12px;">▸ build this</button>
           <span class="repo-link" data-idx="${idx}"></span>
         </div>
-        <div class="repo-stats" data-idx="${idx}" style="font-size:11px;color:var(--text-dim);margin-top:6px;"></div>
+        <div class="repo-stats hint" data-idx="${idx}" style="margin-top:6px;"></div>
       </div>`).join('');
   }
   el.innerHTML = html || `<div class="empty">plan came back empty — try generating again</div>`;
@@ -1923,9 +1924,9 @@ async function renderPromptEditors(){
     const panel = document.createElement('div');
     panel.className = 'panel';
     panel.innerHTML = `
-      <h2>${escapeHtml(def.label)} ${isCustom ? '<span style="color:var(--amber);font-size:11px;">· customized</span>' : ''}</h2>
+      <h2>${escapeHtml(def.label)} ${isCustom ? '<span class="micro" style="color:var(--amber);">· customized</span>' : ''}</h2>
       <div class="desc">available placeholders: ${def.placeholders.map(p=>`<code>{{${p}}}</code>`).join(', ')} — these get filled in automatically, keep them intact.</div>
-      <textarea data-key="${def.key}" style="min-height:280px;font-size:11px;">${escapeHtml(current)}</textarea>
+      <textarea data-key="${def.key}" style="min-height:280px;">${escapeHtml(current)}</textarea>
       <div class="actions" style="margin-top:10px;">
         <button class="scan save-prompt-btn" data-key="${def.key}">▸ save</button>
         <button class="star reset-prompt-btn" data-key="${def.key}" style="width:auto;padding:0 12px;">reset to default</button>
