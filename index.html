@@ -522,6 +522,12 @@ async function settingDelete(key){
 
 /* ---- jobs: SHARED across everyone — upsert with smartMerge semantics (never let a
    blank field overwrite a good one). This is the "gets smarter over time" pool. ---- */
+function smartMerge(existing, job){
+  return {
+    location: job.location || existing.location,
+    url: job.url || existing.url
+  };
+}
 async function upsertJob(job){
   try{
     const { data: existing } = await db.from('jobs').select('*').eq('company', job.company||'').eq('title', job.title||'').maybeSingle();
