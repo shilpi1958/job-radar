@@ -122,6 +122,14 @@
   }
   button.scan:hover{background:#7bffb4;}
   button.scan:disabled{background:var(--phosphor-dim);cursor:wait;}
+  button.scan.secondary{
+    background:none;color:var(--phosphor);border:1px solid var(--phosphor-dim);
+  }
+  button.scan.secondary:hover{background:rgba(93,255,158,0.08);border-color:var(--phosphor);}
+  .section-label{
+    font-family:'Space Grotesk',sans-serif;font-size:11px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:1.5px;margin:28px 0 -6px 4px;
+  }
   .view-toggle{display:flex;gap:6px;font-size:11px;}
   .view-toggle button{
     background:none;border:1px solid var(--panel-line);color:var(--text-dim);
@@ -361,6 +369,7 @@
         <b>3.</b> further down this page, connect an AI key — required, it's what activates scanning.
       </div>
     </div>
+    <div class="section-label">your background</div>
     <div class="panel">
       <h2>1. what you're looking for</h2>
       <div class="desc">tell us in plain language: what kind of role, what about your background matters, any hard no's, location/remote needs. this is what scoring is actually based on — not a generic checklist. saved automatically; click "update my scoring" below whenever you change it so scans start using the new version.</div>
@@ -389,6 +398,8 @@
       <div class="save-hint" id="cvStatus"></div>
     </div>
 
+    <div class="section-label">connections</div>
+
     <div class="panel" style="border-color:var(--phosphor-dim);">
       <h2>▸ connect your AI keys</h2>
       <div class="desc">
@@ -412,7 +423,7 @@
         </div>
       </div>
       <div class="actions" style="margin-bottom:14px;">
-        <button class="scan" id="apiKeySaveBtn">▸ save Claude key</button>
+        <button class="scan secondary" id="apiKeySaveBtn">▸ save Claude key</button>
         <span id="apiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
       </div>
       <div class="row">
@@ -422,7 +433,7 @@
         </div>
       </div>
       <div class="actions">
-        <button class="scan" id="openaiKeySaveBtn">▸ save OpenAI key</button>
+        <button class="scan secondary" id="openaiKeySaveBtn">▸ save OpenAI key</button>
         <span id="openaiKeyStatus" style="font-size:11px;color:var(--text-dim);"></span>
       </div>
     </div>
@@ -445,7 +456,7 @@
         </div>
       </div>
       <div class="actions">
-        <button class="scan" id="ghSaveBtn">▸ save</button>
+        <button class="scan secondary" id="ghSaveBtn">▸ save</button>
         <span id="ghStatus" style="font-size:11px;color:var(--text-dim);"></span>
       </div>
     </div>
