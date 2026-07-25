@@ -277,7 +277,6 @@
     <button id="navWatch">★ watchlist</button>
     <button id="navPlan">◈ proof-of-work plan</button>
     <button id="navProfile">◆ profile</button>
-    <button id="navSettings">⚙ prompts</button>
     <div style="flex:1;"></div>
     <button id="signOutBtn" class="hint">↩ sign out</button>
   </nav>
@@ -331,6 +330,8 @@
       <button class="scan" id="scanBtn">▸ run scan</button>
     </div>
     <div class="desc" style="margin-top:6px;">live search, ~30-60s, real spend (repeat search within a week just asks first).</div>
+    <button class="link-btn" id="scanPromptToggle" style="margin-top:8px;" type="button">◈ prompt used here</button>
+    <div id="scanPromptEditor" style="display:none;margin-top:10px;"></div>
   </div>
 
   <div class="status" id="status"></div>
@@ -503,21 +504,14 @@
       <div class="desc">concrete projects, built from your skills and watchlist companies. hit "build this" and it becomes a real repo, right here. private — nothing to publish or announce.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
       <div class="status" id="planStatus"></div>
+      <button class="link-btn" id="planPromptToggle" style="margin-top:8px;" type="button">◈ prompt used here</button>
+      <div id="planPromptEditor" style="display:none;margin-top:10px;"></div>
     </div>
 
     <div id="planResults"></div>
     <div id="olderBuilds"></div>
   </div>
 
-  <div id="viewSettings" style="display:none">
-    <div class="panel">
-      <h2>✎ edit the actual prompts</h2>
-      <div class="desc">
-        real templates sent to the model. keep <code>{{PLACEHOLDER}}</code> tokens intact. changes apply next run — "reset" restores default.
-      </div>
-    </div>
-    <div id="promptEditors"></div>
-  </div>
 
   </main>
 </div>
@@ -1274,37 +1268,32 @@ function recoverKeyedString(text, key){
 document.getElementById('scanBtn').addEventListener('click', runScan);
 
 /* ---- nav ---- */
-const VIEWS = ['scan','watch','profile','plan','settings'];
+const VIEWS = ['scan','watch','profile','plan'];
 const VIEW_TITLES = {
   scan: ['scan', 'scanning + scoring against your actual profile — results stack permanently, nothing gets thrown away'],
   watch: ['watchlist', 'companies you\'re tracking — these feed straight into your proof-of-work plan'],
   profile: ['profile', 'your background, and what you\'re looking for — this is what scoring is based on'],
-  plan: ['proof-of-work plan', 'concrete projects that prove you\'re ready, built from your skills and watchlist'],
-  settings: ['prompts', 'the actual templates sent to the model, editable']
+  plan: ['proof-of-work plan', 'concrete projects that prove you\'re ready, built from your skills and watchlist']
 };
 function switchView(view){
   document.getElementById('viewScan').style.display = view==='scan' ? '' : 'none';
   document.getElementById('viewWatchlist').style.display = view==='watch' ? '' : 'none';
   document.getElementById('viewProfile').style.display = view==='profile' ? '' : 'none';
   document.getElementById('viewPlan').style.display = view==='plan' ? '' : 'none';
-  document.getElementById('viewSettings').style.display = view==='settings' ? '' : 'none';
   document.getElementById('navScan').classList.toggle('active', view==='scan');
   document.getElementById('navWatch').classList.toggle('active', view==='watch');
   document.getElementById('navProfile').classList.toggle('active', view==='profile');
   document.getElementById('navPlan').classList.toggle('active', view==='plan');
-  document.getElementById('navSettings').classList.toggle('active', view==='settings');
   const [title, sub] = VIEW_TITLES[view] || VIEW_TITLES.scan;
   document.getElementById('viewTitle').textContent = title;
   document.getElementById('viewSub').textContent = sub;
   if(view === 'watch') renderWatchResults();
   if(view === 'plan'){ renderGapBars(); renderOlderBuilds(); }
-  if(view === 'settings') renderPromptEditors();
 }
 document.getElementById('navScan').onclick = ()=>switchView('scan');
 document.getElementById('navWatch').onclick = ()=>switchView('watch');
 document.getElementById('navProfile').onclick = ()=>switchView('profile');
 document.getElementById('navPlan').onclick = ()=>switchView('plan');
-document.getElementById('navSettings').onclick = ()=>switchView('settings');
 
 /* ---- profile: skills box ---- */
 const DEFAULT_SKILLS = `AI PM at a healthcare startup — ambient scribing, clinical documentation
@@ -1929,49 +1918,58 @@ function renderWatchResults(){
 }
 
 /* ---- prompts editor ---- */
-async function renderPromptEditors(){
-  const el = document.getElementById('promptEditors');
-  el.innerHTML = '';
-  for(const def of PROMPT_DEFS){
-    const current = await getPromptTemplate(def.key);
-    const isCustom = current !== def.default;
-    const panel = document.createElement('div');
-    panel.className = 'panel';
-    panel.innerHTML = `
+async function renderPromptEditor(key, el){
+  const def = PROMPT_DEFS.find(p => p.key === key);
+  const current = await getPromptTemplate(key);
+  const isCustom = current !== def.default;
+  el.innerHTML = `
+    <div class="panel">
       <h2>${escapeHtml(def.label)} ${isCustom ? '<span class="micro" style="color:var(--amber);">· customized</span>' : ''}</h2>
       <div class="desc">available placeholders: ${def.placeholders.map(p=>`<code>{{${p}}}</code>`).join(', ')} — these get filled in automatically, keep them intact.</div>
-      <textarea data-key="${def.key}" style="min-height:280px;">${escapeHtml(current)}</textarea>
+      <textarea data-key="${key}" style="min-height:280px;">${escapeHtml(current)}</textarea>
       <div class="actions" style="margin-top:10px;">
-        <button class="scan save-prompt-btn" data-key="${def.key}">▸ save</button>
-        <button class="star reset-prompt-btn" data-key="${def.key}" style="width:auto;padding:0 12px;">reset to default</button>
-        <span class="save-hint" data-status="${def.key}"></span>
+        <button class="scan save-prompt-btn" data-key="${key}">▸ save</button>
+        <button class="star reset-prompt-btn" data-key="${key}" style="width:auto;padding:0 12px;">reset to default</button>
+        <span class="save-hint" data-status="${key}"></span>
       </div>
-    `;
-    el.appendChild(panel);
-  }
-  el.querySelectorAll('.save-prompt-btn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const key = btn.dataset.key;
-      const textarea = el.querySelector(`textarea[data-key="${key}"]`);
-      const status = el.querySelector(`[data-status="${key}"]`);
-      const def = PROMPT_DEFS.find(p=>p.key===key);
-      const missing = def.placeholders.filter(p => !textarea.value.includes('{{'+p+'}}'));
-      if(missing.length){
-        if(!confirm(`Heads up: this is missing ${missing.map(m=>'{{'+m+'}}').join(', ')} — that data just won't get included. Save anyway?`)) return;
-      }
-      await settingSet('prompt_override_' + key, textarea.value);
-      status.textContent = 'saved — takes effect next run';
-    });
+    </div>
+  `;
+  el.querySelector('.save-prompt-btn').addEventListener('click', async ()=>{
+    const textarea = el.querySelector(`textarea[data-key="${key}"]`);
+    const status = el.querySelector(`[data-status="${key}"]`);
+    const missing = def.placeholders.filter(p => !textarea.value.includes('{{'+p+'}}'));
+    if(missing.length){
+      if(!confirm(`Heads up: this is missing ${missing.map(m=>'{{'+m+'}}').join(', ')} — that data just won't get included. Save anyway?`)) return;
+    }
+    await settingSet('prompt_override_' + key, textarea.value);
+    status.textContent = 'saved — takes effect next run';
   });
-  el.querySelectorAll('.reset-prompt-btn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const key = btn.dataset.key;
-      if(!confirm('Reset this prompt to the built-in default? Your edits will be lost.')) return;
-      await settingDelete('prompt_override_' + key);
-      renderPromptEditors();
-    });
+  el.querySelector('.reset-prompt-btn').addEventListener('click', async ()=>{
+    if(!confirm('Reset this prompt to the built-in default? Your edits will be lost.')) return;
+    await settingDelete('prompt_override_' + key);
+    renderPromptEditor(key, el);
   });
 }
+
+function setupPromptToggle(toggleBtnId, containerId, promptKey){
+  const btn = document.getElementById(toggleBtnId);
+  const container = document.getElementById(containerId);
+  let loaded = false;
+  btn.addEventListener('click', async ()=>{
+    const showing = container.style.display !== 'none';
+    if(showing){
+      container.style.display = 'none';
+      return;
+    }
+    container.style.display = '';
+    if(!loaded){
+      await renderPromptEditor(promptKey, container);
+      loaded = true;
+    }
+  });
+}
+setupPromptToggle('scanPromptToggle', 'scanPromptEditor', 'scan');
+setupPromptToggle('planPromptToggle', 'planPromptEditor', 'plan');
 
 async function initLoad(){
   await loadStack();
