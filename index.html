@@ -378,6 +378,14 @@
         <b>3.</b> further down, connect an AI key — required to scan.
       </div>
     </div>
+    <div class="panel">
+      <h2>◆ how it works</h2>
+      <div class="desc">
+        <b>1. scan</b> — search live postings against your profile. <b>2. track</b> — see a company worth targeting? hit "+ watchlist" on that result.
+        <b>3. generate a plan</b> — your proof-of-work plan builds projects aimed at your watchlist companies and skill gaps.
+        <b>4. build</b> — cherry-pick a project, hit "build this," and it becomes a real GitHub repo with live activity stats, right there.
+      </div>
+    </div>
     <div class="section-label">your background</div>
     <div class="panel">
       <h2>1. what you're looking for</h2>
@@ -1158,6 +1166,7 @@ function render(){
           <button class="star broken-btn" data-key="${encodeURIComponent(key)}" title="mark link as dead / page not found">⚠✕</button>
         </div>
       </div>
+      <div class="watch-feedback hint" data-company-feedback="${escapeAttr(job.company||'')}" style="display:none;color:var(--phosphor);">→ added to your plan targets</div>
       ${score!==null ? `
       <div class="meter-wrap">
         <span class="meter-label">match</span>
@@ -1185,6 +1194,11 @@ function render(){
       btn.disabled = true;
       btn.textContent = '✓ tracked';
       btn.title = 'already on your watchlist';
+      const feedback = container.querySelector(`.watch-feedback[data-company-feedback="${CSS.escape(company)}"]`);
+      if(feedback){
+        feedback.style.display = '';
+        setTimeout(()=>{ feedback.style.display = 'none'; }, 3000);
+      }
     });
   });
 }
