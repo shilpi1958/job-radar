@@ -2054,7 +2054,9 @@ function showLoginGate(){
 document.getElementById('authSendBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('authEmail').value.trim();
   const status = document.getElementById('authStatus');
+  const btn = document.getElementById('authSendBtn');
   if(!email){ status.textContent = 'enter your email first'; return; }
+  btn.disabled = true;
   status.textContent = 'sending…';
   const { error } = await db.auth.signInWithOtp({
     email,
@@ -2068,6 +2070,7 @@ document.getElementById('authSendBtn').addEventListener('click', async ()=>{
   }else{
     status.textContent = `check ${email} for a sign-in link — open it once, from a fresh email`;
   }
+  btn.disabled = false;
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
