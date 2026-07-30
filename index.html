@@ -362,8 +362,13 @@
   <div id="viewWatchlist" style="display:none">
     <div class="panel">
       <h2>companies you're tracking</h2>
-      <div class="desc">hit "+ watchlist" on a scan result to add one. these are what your plan targets — a handful at a time (~5) works best.</div>
+      <div class="desc">hit "+ watchlist" on a scan result to add one, or add a company directly below if it hasn't shown up in a scan yet. these are what your plan targets — a handful at a time (~5) works best.</div>
       <div class="chips" id="watchChips"></div>
+      <div class="row" style="margin-top:10px;">
+        <div class="field">
+          <input type="text" id="watchInput" placeholder="add a company name — press Enter (e.g. 'Ather Energy')">
+        </div>
+      </div>
     </div>
 
     <div id="watchResults"></div>
@@ -1871,6 +1876,17 @@ function renderWatchChips(){
     });
   });
 }
+document.getElementById('watchInput').addEventListener('keydown', async (e)=>{
+  if(e.key === 'Enter'){
+    const val = e.target.value.trim();
+    if(val && !watchCompanies.includes(val)){
+      watchCompanies.push(val);
+      renderWatchChips();
+      await addWatchCompany(val);
+    }
+    e.target.value = '';
+  }
+});
 function renderWatchResults(){
   const container = document.getElementById('watchResults');
   const normalized = watchCompanies.map(c=>c.toLowerCase().trim());
