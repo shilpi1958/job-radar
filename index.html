@@ -1881,12 +1881,15 @@ async function renderWatchChips(){
   el.innerHTML = watchCompanies.map((c,i)=>{
     const n = counts[c.toLowerCase().trim()] || 0;
     const readiness = n>0 ? `${n} project${n>1?'s':''} targeting them` : 'no targeted projects yet';
-    return `<button class="chip active" data-idx="${i}" title="${escapeAttr(readiness)}">${escapeHtml(c)} ✕ <span class="hint">· ${n}</span></button>`;
+    return `<button class="chip active" data-idx="${i}" data-count="${n}" title="${escapeAttr(readiness)}">${escapeHtml(c)} ✕ <span class="hint">· ${n}</span></button>`;
   }).join('');
   el.querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const idx = parseInt(btn.dataset.idx);
       const name = watchCompanies[idx];
+      const n = parseInt(btn.dataset.count) || 0;
+      const projectNote = n>0 ? ` You already have ${n} portfolio project${n>1?'s':''} targeting them — removing them here won't delete those, but you'll lose the connection back to why you built them.` : '';
+      if(!confirm(`Stop tracking ${name}?${projectNote}`)) return;
       watchCompanies.splice(idx, 1);
       renderWatchChips();
       await removeWatchCompany(name);
