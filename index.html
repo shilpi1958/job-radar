@@ -508,6 +508,7 @@
     <div class="panel">
       <h2>proof-of-work plan</h2>
       <div class="desc">concrete projects, built from your skills and watchlist companies. hit "build this" and it becomes a real repo, right here. private — nothing to publish or announce.</div>
+      <div class="desc" id="planScanNotice" style="display:none;color:var(--amber);">you haven't scanned yet — this plan will use general market knowledge instead of what you've actually found. scan first for a sharper plan, or generate anyway.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
       <div class="status" id="planStatus"></div>
       <button class="link-btn" id="planPromptToggle" style="margin-top:8px;" type="button">◈ prompt used here</button>
@@ -1517,6 +1518,7 @@ async function renderGapBars(){
   const el = document.getElementById('gapBars');
   const { tally, postingsAnalyzed } = await getSkillTally();
   document.getElementById('scanTally').textContent = `${postingsAnalyzed} posting${postingsAnalyzed===1?'':'s'} analyzed so far.`;
+  document.getElementById('planScanNotice').style.display = postingsAnalyzed > 0 ? 'none' : '';
   const entries = Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,12);
   if(entries.length===0){
     el.innerHTML = `<div class="empty">run a few scans first — this fills in from real postings, not guesses.</div>`;
