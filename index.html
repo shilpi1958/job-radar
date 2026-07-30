@@ -827,20 +827,22 @@ document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('apiKeyInput').value.trim();
   const status = document.getElementById('apiKeyStatus');
   if(!val){ status.textContent = 'paste a key first'; return; }
+  const formatWarning = val.startsWith('sk-ant-') ? '' : ' — this doesn\'t look like a Claude key (should start "sk-ant-"), double check it';
   localStorage.setItem('anthropic_api_key', val);
   document.getElementById('apiKeyInput').value = '';
-  status.textContent = 'saved — stored in this browser only';
   loadApiKeyStatus();
+  if(formatWarning) status.textContent += formatWarning;
   settingGet('generated_rubric', null).then(r => refreshOnboardingBanner(!!r, true));
 });
 document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('openaiKeyInput').value.trim();
   const status = document.getElementById('openaiKeyStatus');
   if(!val){ status.textContent = 'paste a key first'; return; }
+  const formatWarning = val.startsWith('sk-') ? '' : ' — this doesn\'t look like an OpenAI key (should start "sk-"), double check it';
   localStorage.setItem('openai_api_key', val);
   document.getElementById('openaiKeyInput').value = '';
-  status.textContent = 'saved — stored in this browser only';
   loadApiKeyStatus();
+  if(formatWarning) status.textContent += formatWarning;
   settingGet('generated_rubric', null).then(r => refreshOnboardingBanner(!!r, true));
 });
 document.getElementById('apiKeyInfoBtn').addEventListener('click', ()=>{
@@ -1136,7 +1138,7 @@ async function runScan(){
     statusEl(`${freshJobs.length} found this scan · ${currentResults.length} total stacked${recoveredNote} · ${new Date().toLocaleTimeString()}`, false);
   }catch(e){
     console.error(e);
-    statusEl('scan failed — the search may have returned an unexpected format. try again.', false);
+    statusEl(`scan failed — ${e.message || 'unknown error'}`, false);
   }
   btn.disabled = false;
   render();
@@ -1582,7 +1584,7 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
     planStatus.textContent = `generated · ${new Date().toLocaleTimeString()}${note}`; planStatus.className = 'status';
   }catch(e){
     console.error(e);
-    planStatus.textContent = 'plan generation failed — try again'; planStatus.className = 'status';
+    planStatus.textContent = `plan generation failed — ${e.message || 'unknown error'}`; planStatus.className = 'status';
   }
   btn.disabled = false;
 });
