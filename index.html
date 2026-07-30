@@ -295,11 +295,11 @@
     <div class="row">
       <div class="field">
         <label>keywords</label>
-        <input type="text" id="kw" value="AI product manager robotics OR deep tech OR early-stage builder">
+        <input type="text" id="kw" placeholder="e.g. 'AI product manager robotics OR deep tech OR early-stage builder'">
       </div>
       <div class="field">
         <label>location</label>
-        <input type="text" id="loc" value="Bengaluru or Remote India">
+        <input type="text" id="loc" placeholder="e.g. 'Bengaluru or Remote India'">
       </div>
       <div class="field">
         <label>company (optional)</label>
@@ -313,8 +313,8 @@
     <div class="desc">click a chip to toggle it · ✕ removes it (re-add anytime below)</div>
     <div class="chips" id="chips">
       <span class="chip" data-tag="healthcare"><span class="chip-label">healthcare AI / EHR</span><span class="chip-x">✕</span></span>
-      <span class="chip active" data-tag="deeptech"><span class="chip-label">robotics / hardware / deep tech</span><span class="chip-x">✕</span></span>
-      <span class="chip active" data-tag="builder"><span class="chip-label">early-stage builder PM</span><span class="chip-x">✕</span></span>
+      <span class="chip" data-tag="deeptech"><span class="chip-label">robotics / hardware / deep tech</span><span class="chip-x">✕</span></span>
+      <span class="chip" data-tag="builder"><span class="chip-label">early-stage builder PM</span><span class="chip-x">✕</span></span>
       <span class="chip" data-tag="civic"><span class="chip-label">civic tech</span><span class="chip-x">✕</span></span>
     </div>
     <div class="chips" id="customTagsWrap"></div>
@@ -879,7 +879,7 @@ function loadApiKeyStatus(){
   }
 }
 
-const activeTags = new Set(['deeptech','builder']);
+const activeTags = new Set();
 let customTags = [];
 
 /* ================= editable prompt templates =================
