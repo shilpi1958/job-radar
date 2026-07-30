@@ -1287,7 +1287,7 @@ function switchView(view){
   const [title, sub] = VIEW_TITLES[view] || VIEW_TITLES.scan;
   document.getElementById('viewTitle').textContent = title;
   document.getElementById('viewSub').textContent = sub;
-  if(view === 'watch') renderWatchResults();
+  if(view === 'watch'){ renderWatchResults(); renderWatchChips(); }
   if(view === 'plan'){ renderGapBars(); renderOlderBuilds(); }
 }
 document.getElementById('navScan').onclick = ()=>switchView('scan');
@@ -1858,9 +1858,19 @@ async function loadWatchCompanies(){
   watchCompanies = await getWatchCompanies();
   renderWatchChips();
 }
-function renderWatchChips(){
+async function renderWatchChips(){
   const el = document.getElementById('watchChips');
-  el.innerHTML = watchCompanies.map((c,i)=>`<button class="chip active" data-idx="${i}">${escapeHtml(c)} ✕</button>`).join('');
+  const portfolio = await getPortfolio();
+  const counts = {};
+  portfolio.forEach(p=>{
+    const c = (p.target_company||'').toLowerCase().trim();
+    if(c && c !== 'general') counts[c] = (counts[c]||0) + 1;
+  });
+  el.innerHTML = watchCompanies.map((c,i)=>{
+    const n = counts[c.toLowerCase().trim()] || 0;
+    const readiness = n>0 ? `${n} project${n>1?'s':''} targeting them` : 'no targeted projects yet';
+    return `<button class="chip active" data-idx="${i}" title="${escapeAttr(readiness)}">${escapeHtml(c)} ✕ <span class="hint">· ${n}</span></button>`;
+  }).join('');
   el.querySelectorAll('button').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const idx = parseInt(btn.dataset.idx);
