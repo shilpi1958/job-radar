@@ -326,6 +326,7 @@
   </div>
 
   <div class="panel">
+    <div class="desc" id="scanKeyNotice" style="display:none;color:var(--amber);margin-bottom:8px;">no AI key connected yet — go to Profile → "connect your AI keys" before scanning.</div>
     <div class="actions">
       <button class="scan" id="scanBtn">▸ run scan</button>
     </div>
@@ -373,10 +374,10 @@
 
   <div id="viewProfile" style="display:none">
     <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:rgba(93,255,158,0.08);">
-      <h2>▸ welcome — 3 quick things first</h2>
+      <h2>▸ welcome — 2 things first</h2>
       <div class="desc" style="color:var(--text);">
-        <b>1.</b> what you're looking for, below — click "update my scoring." <b>2.</b> your proof points (optional).
-        <b>3.</b> further down, connect an AI key — required to scan.
+        <b id="onboardStep1">1.</b> what you're looking for, below — click "update my scoring."
+        <b id="onboardStep2">2.</b> further down, connect an AI key — required to scan, costs real spend on your own key.
       </div>
     </div>
     <div class="panel">
@@ -825,6 +826,7 @@ document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('apiKeyInput').value = '';
   status.textContent = 'saved — stored in this browser only';
   loadApiKeyStatus();
+  settingGet('generated_rubric', null).then(r => refreshOnboardingBanner(!!r, true));
 });
 document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('openaiKeyInput').value.trim();
@@ -834,6 +836,7 @@ document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('openaiKeyInput').value = '';
   status.textContent = 'saved — stored in this browser only';
   loadApiKeyStatus();
+  settingGet('generated_rubric', null).then(r => refreshOnboardingBanner(!!r, true));
 });
 document.getElementById('apiKeyInfoBtn').addEventListener('click', ()=>{
   const el = document.getElementById('apiKeyInfoText');
@@ -856,6 +859,8 @@ function loadApiKeyStatus(){
     getAnthropicKey() ? 'connected — stored in this browser' : 'not connected yet';
   document.getElementById('openaiKeyStatus').textContent =
     getOpenAIKey() ? 'connected — stored in this browser' : 'not connected yet';
+  document.getElementById('scanKeyNotice').style.display =
+    (getAnthropicKey() || getOpenAIKey()) ? 'none' : '';
   updateProviderRowVisibility();
 
   const connected = getAnthropicKey() ? 'Claude' : (getOpenAIKey() ? 'OpenAI' : null);
@@ -1376,7 +1381,7 @@ async function generateRubricFromStance(){
     await settingSet('generated_stance', parsed.stance);
     await settingSet('generated_rubric', parsed.rubric);
     status.textContent = 'scoring is personalized to your profile — future scans will use it';
-    document.getElementById('onboardingBanner').style.display = 'none';
+    refreshOnboardingBanner(true, !!(getAnthropicKey() || getOpenAIKey()));
   }catch(e){
     console.error('generateRubricFromStance failed', e);
     status.textContent = `couldn't generate: ${e.message}`;
@@ -1997,10 +2002,21 @@ async function showApp(){
   // without this, a scan would silently fall back to the generic default
   // rubric with no indication that's what happened.
   const generatedRubric = await settingGet('generated_rubric', null);
-  if(!generatedRubric){
+  const hasKey = !!(getAnthropicKey() || getOpenAIKey());
+  if(!generatedRubric || !hasKey){
+    refreshOnboardingBanner(!!generatedRubric, hasKey);
     document.getElementById('onboardingBanner').style.display = '';
     switchView('profile');
   }
+}
+function refreshOnboardingBanner(rubricDone, keyDone){
+  const step1 = document.getElementById('onboardStep1');
+  const step2 = document.getElementById('onboardStep2');
+  step1.style.textDecoration = rubricDone ? 'line-through' : 'none';
+  step1.style.opacity = rubricDone ? '0.5' : '1';
+  step2.style.textDecoration = keyDone ? 'line-through' : 'none';
+  step2.style.opacity = keyDone ? '0.5' : '1';
+  if(rubricDone && keyDone) document.getElementById('onboardingBanner').style.display = 'none';
 }
 function showLoginGate(){
   document.getElementById('authGate').style.display = '';
