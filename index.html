@@ -896,19 +896,19 @@ let customTags = [];
    version of each, used everywhere. Edit here (or override per-prompt in the Prompts
    tab by replacing the placeholder with custom text in that one template). */
 
-const CANDIDATE_STANCE_TEXT = `She is deliberately NOT targeting further healthcare roles even though she currently works in healthcare AI — treat that experience as a transferable asset (agentic AI systems, data pipelines, regulated-data/config work) to pitch into other domains, not as the industry she wants to stay in. Her target roles: deep-tech/robotics PM, or high-ownership early-stage builder PM, outside healthcare. Based in Bengaluru, India. Prefers early-stage, technically complex companies, high ownership. Explicitly not interested in VC, advisory, or crypto/Web3 roles. Critically: she has an engineering/technical background and can go deep with engineers, but has NEVER worked as a professional software developer — no shipped-code job history, no "X years as SWE."`;
+const CANDIDATE_STANCE_TEXT = `The candidate is deliberately NOT targeting further healthcare roles even though they currently work in healthcare AI — treat that experience as a transferable asset (agentic AI systems, data pipelines, regulated-data/config work) to pitch into other domains, not as the industry they want to stay in. Their target roles: deep-tech/robotics PM, or high-ownership early-stage builder PM, outside healthcare. Based in Bengaluru, India. Prefers early-stage, technically complex companies, high ownership. Explicitly not interested in VC, advisory, or crypto/Web3 roles. Critically: they have an engineering/technical background and can go deep with engineers, but have NEVER worked as a professional software developer — no shipped-code job history, no "X years as SWE."`;
 
 const RUBRIC_TEXT = `- Domain fit (healthcare AI/EHR, or robotics/hardware/deep tech, or clearly execution-heavy early-stage PM): up to 35 points
 - Ownership/stage fit (early-stage, high-autonomy, builder culture, not corporate/process-heavy): up to 25 points
-- Technical-bar fit: up to 30 points. Give FULL points if the posting values engineering literacy, technical depth, or an engineering degree WITHOUT mandating professional developer/SWE experience. Give ZERO if the posting explicitly requires "X years as a software engineer/developer" or a coding-heavy background as a hard requirement — that is a real gate she cannot pass, flag it clearly.
+- Technical-bar fit: up to 30 points. Give FULL points if the posting values engineering literacy, technical depth, or an engineering degree WITHOUT mandating professional developer/SWE experience. Give ZERO if the posting explicitly requires "X years as a software engineer/developer" or a coding-heavy background as a hard requirement — that is a real gate the candidate cannot pass, flag it clearly.
 - Location fit (Bengaluru or genuinely remote-friendly India-based): up to 10 points
-Also set "gate": a short note if there's a hard requirement she doesn't meet (e.g. "requires 3+ yrs as SWE"), or null if there's no such gate.`;
+Also set "gate": a short note if there's a hard requirement the candidate doesn't meet (e.g. "requires 3+ yrs as SWE"), or null if there's no such gate.`;
 
 const DEFAULT_PROMPT_SCAN = `Search the web right now for CURRENT, REAL, live job openings (not generic listing-site search pages) that match this candidate. Focus areas: {{FOCUS_AREAS}}.
 {{COMPANY_FILTER}}
 Prioritize these sources, in order, over generic search results:
 1. Company career pages directly (search "site:[company].com careers" style or the company's own jobs page)
-2. Wellfound (AngelList Talent), Naukri, Instahyre, Cutshort — Instahyre and Cutshort specifically skew toward Indian early-stage/technical roles, weight these heavily for her profile
+2. Wellfound (AngelList Talent), Naukri, Instahyre, Cutshort — Instahyre and Cutshort specifically skew toward Indian early-stage/technical roles, weight these heavily for the candidate's profile
 3. Indeed, ZipRecruiter, and other structured job boards via regular web search
 4. YC's own jobs board (ycombinator.com/jobs)
 5. Hacker News "Who is Hiring" monthly thread (search site:news.ycombinator.com "who is hiring")
@@ -917,7 +917,7 @@ Prioritize these sources, in order, over generic search results:
 Only fall back to generic listing aggregators if these don't surface enough results.
 Keywords to search with: "{{KEYWORDS}}". Location preference: {{LOCATION}} (include strong remote-friendly roles too).
 
-Candidate profile — her own proof points, and CV text if she's uploaded one:
+Candidate profile — their own proof points, and CV text if they've uploaded one:
 {{CANDIDATE_PROFILE}}
 
 Fixed context: {{CANDIDATE_STANCE}}
@@ -939,27 +939,27 @@ Find up to 5 real, specific, currently-open roles at named companies. For each, 
 Respond with ONLY a raw JSON array, no markdown fences, no preamble. Never use double-quote characters inside string values (use single quotes if quoting something). Format:
 [{"title":"","company":"","location":"","url":"","fit":"","score":0,"gate":null,"skills_required":[],"source":""}]`;
 
-const DEFAULT_PROMPT_PLAN = `Candidate wants to leave her current company within 6 months for a better-fit role. She wants to do this quietly — no public announcements, no content that signals to her current employer or network that she's job hunting. Here is her real, self-reported skill/proof-point inventory:
+const DEFAULT_PROMPT_PLAN = `Candidate wants to leave their current company within 6 months for a better-fit role. They want to do this quietly — no public announcements, no content that signals to their current employer or network that they're job hunting. Here is their real, self-reported skill/proof-point inventory:
 {{CANDIDATE_PROFILE}}
 
-Here is what real job postings scanned for her have actually been asking for, across both general search and specific companies she's tracking (tag: frequency): {{MARKET_TALLY}}
+Here is what real job postings scanned for them have actually been asking for, across both general search and specific companies they're tracking (tag: frequency): {{MARKET_TALLY}}
 
 {{CANDIDATE_STANCE}}
 
-Companies she is specifically targeting, from her watchlist, if any: {{WATCHLIST_COMPANIES}}
+Companies the candidate is specifically targeting, from their watchlist, if any: {{WATCHLIST_COMPANIES}}
 
-Of those, companies that already have a side project targeting them in her portfolio (deprioritize these — favor companies with no coverage yet, since projects accumulate across plan runs, not all at once): {{ALREADY_TARGETED}}
+Of those, companies that already have a side project targeting them in their portfolio (deprioritize these — favor companies with no coverage yet, since projects accumulate across plan runs, not all at once): {{ALREADY_TARGETED}}
 
-Give her a concrete plan. Two parts:
+Give the candidate a concrete plan. Two parts:
 
-1. skill_gaps — specific gaps versus what postings actually ask for, PLUS the kind of systems-level knowledge a sharp technical interviewer would probe for even if no posting explicitly lists it: ML infrastructure, GPU/inference cost and scheduling, training vs. serving tradeoffs, data pipeline architecture at scale, observability, MLOps (deployment, versioning, rollback, monitoring for drift). If her postings tally doesn't surface these, include them anyway — they are the kind of thing a technically sharp interviewer brings up unprompted to test depth, and a PM who can hold that conversation stands out immediately.
+1. skill_gaps — specific gaps versus what postings actually ask for, PLUS the kind of systems-level knowledge a sharp technical interviewer would probe for even if no posting explicitly lists it: ML infrastructure, GPU/inference cost and scheduling, training vs. serving tradeoffs, data pipeline architecture at scale, observability, MLOps (deployment, versioning, rollback, monitoring for drift). If their postings tally doesn't surface these, include them anyway — they are the kind of thing a technically sharp interviewer brings up unprompted to test depth, and a PM who can hold that conversation stands out immediately.
 
 2. side_projects — the bar here is "makes a sharp technical interviewer sit up," not "checks a box." Each project must involve REAL systems-level depth: actually standing up infrastructure, actually measuring and optimizing something non-trivial (cost, latency, throughput, failure modes), actually hitting real constraints and solving them. Concrete calibration:
 - REJECT: CRUD dashboards, "build a chatbot with an API," tutorial-following, anything where the interesting parts are pre-solved by a framework.
 - TARGET: e.g. benchmark inference cost/latency across quantization strategies on real hardware and write up the tradeoff curve; stand up a small self-hosted GPU inference cluster and load-test it under failure conditions; build a data pipeline that ingests real messy data at volume and survives adversarial edge cases; implement a scaled-down MLOps loop (model versioning, canary rollout, automatic rollback on a defined metric) end to end; instrument and optimize a real system's cost or latency and show the before/after numbers.
-- Each project should build on what she already knows how to do (hands-on hardware/systems builder, not a from-scratch beginner) and push into infra/MLOps/systems territory she hasn't touched yet.
-- If she has companies she's targeting listed above, spread the projects across as many of them as this plan's project count allows — favor companies not already marked "already has a project" over ones that are, so distinct companies get covered as she runs more plans over time. Set each such project's target_company to the specific company name it's aimed at. Only use "general" for a project once every targeted company has at least one project this cycle, or if she isn't targeting anyone yet.
-These are private builds, not public posts: no requirement to publish, announce, or share anywhere until she's actually in an interview room. Scope big enough to be genuinely impressive — up to a few weeks of real work is fine, this is not about speed.
+- Each project should build on what the candidate already knows how to do (hands-on hardware/systems builder, not a from-scratch beginner) and push into infra/MLOps/systems territory they haven't touched yet.
+- If the candidate has companies they're targeting listed above, spread the projects across as many of them as this plan's project count allows — favor companies not already marked "already has a project" over ones that are, so distinct companies get covered as they run more plans over time. Set each such project's target_company to the specific company name it's aimed at. Only use "general" for a project once every targeted company has at least one project this cycle, or if they aren't targeting anyone yet.
+These are private builds, not public posts: no requirement to publish, announce, or share anywhere until the candidate is actually in an interview room. Scope big enough to be genuinely impressive — up to a few weeks of real work is fine, this is not about speed.
 
 Return ONLY raw JSON, no markdown fences, no preamble, never use double-quote characters inside string values (use single quotes if quoting something), in this exact shape:
 {
@@ -1058,15 +1058,15 @@ function statusEl(msg, scanning){
 
 function focusAreasText(){
   const map = {
-    healthcare: 'roles where her healthcare AI / clinical data / EHR integration experience (from her current job at an ambient scribing startup) would count as a strong transferable asset — but the target is NOT another healthcare role, it is using that experience as leverage into adjacent domains',
-    deeptech: 'robotics, drones, hardware, or deep tech startups — she has a hands-on electronics and embedded systems background and wants to move toward shop-floor hardware work eventually',
-    builder: 'early-stage, technically complex startups where the PM role is execution-heavy and hands-on, not process-heavy — she has explicitly turned down VC and pure-advisory roles because she wants to stay a builder',
+    healthcare: 'roles where the candidate\'s healthcare AI / clinical data / EHR integration experience (from their current job at an ambient scribing startup) would count as a strong transferable asset — but the target is NOT another healthcare role, it is using that experience as leverage into adjacent domains',
+    deeptech: 'robotics, drones, hardware, or deep tech startups — the candidate has a hands-on electronics and embedded systems background and wants to move toward shop-floor hardware work eventually',
+    builder: 'early-stage, technically complex startups where the PM role is execution-heavy and hands-on, not process-heavy — the candidate has explicitly turned down VC and pure-advisory roles because they want to stay a builder',
     civic: 'civic tech or public-interest tech products'
   };
   const preset = [...activeTags].map(t=>map[t]);
   const custom = customTags.map(t=>`user-specified focus area: "${t}"`);
   const all = [...preset, ...custom];
-  return all.length ? all.join('; ') : 'general AI product manager roles matching her background';
+  return all.length ? all.join('; ') : 'general AI product manager roles matching the candidate\'s background';
 }
 
 async function runScan(){
