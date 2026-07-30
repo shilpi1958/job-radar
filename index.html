@@ -797,12 +797,12 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
   }
 
   const body = {
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
     max_tokens: maxTokens,
     messages: [{ role: 'user', content: prompt }]
   };
   if(webSearch){
-    body.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: webSearchMaxUses }];
+    body.tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: webSearchMaxUses }];
   }
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
