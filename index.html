@@ -1126,15 +1126,19 @@ async function runScan(){
       clean = clean.slice(firstBracket, lastBracket+1);
     }
     let jobs;
+    let recovered = false;
     try{
       jobs = JSON.parse(clean);
     }catch(parseErr){
       console.warn('scan JSON malformed, recovering entry-by-entry:', parseErr.message);
+      recovered = true;
       jobs = splitTopLevelObjects(textBlocks);
     }
     const freshJobs = Array.isArray(jobs) ? jobs : [];
     freshJobs.sort((a,b)=>(b.score||0)-(a.score||0));
-    const recoveredNote = freshJobs.length ? '' : ' (response was malformed and no entries could be recovered — try again)';
+    const recoveredNote = !freshJobs.length
+      ? ' (response was malformed and no entries could be recovered — try again)'
+      : recovered ? ' · response was malformed, recovered what could be parsed — some results may be missing, try again if this looks short' : '';
     const scanId = await insertScan('scan', { keywords: kw, location: loc, companies: company ? [company] : [], tags: [...activeTags, ...customTags] });
     currentResults = await mergeIntoStack(freshJobs, 'scan', scanId);
     scanLog[signature] = Date.now();
