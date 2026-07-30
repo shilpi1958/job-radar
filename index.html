@@ -279,6 +279,7 @@
     <button id="navPlan">◈ proof-of-work plan</button>
     <button id="navProfile">◆ profile</button>
     <div style="flex:1;"></div>
+    <div id="spendTotal" class="hint" style="padding:0 10px 8px;" title="rough estimate from token usage — not exact billing"></div>
     <button id="signOutBtn" class="hint">↩ sign out</button>
   </nav>
   <main class="wrap">
@@ -793,6 +794,7 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
     }
     const text = (data.choices || []).map(c => c.message?.content || '').join('\n').trim();
     if(!text) throw new Error('OpenAI returned an empty response');
+    recordSpend('openai', data.usage?.prompt_tokens || 0, data.usage?.completion_tokens || 0);
     return text;
   }
 
@@ -821,7 +823,34 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
   }
   const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
   if(!text) throw new Error('Claude returned an empty response');
+  recordSpend('claude', data.usage?.input_tokens || 0, data.usage?.output_tokens || 0);
   return text;
+}
+
+/* ---- cost tracking: rough per-provider estimate, persisted per user ----
+   Rates are $/million tokens, current as of the pinned model strings above.
+   Not exact — provider billing may differ slightly (cache discounts, etc.) —
+   good enough to answer "roughly how much have I spent," not for invoicing. */
+const TOKEN_RATES = {
+  claude: { input: 3.00, output: 15.00 },   // claude-sonnet-5
+  openai: { input: 2.50, output: 10.00 }    // gpt-4o
+};
+async function recordSpend(provider, inputTokens, outputTokens){
+  const rates = TOKEN_RATES[provider];
+  if(!rates) return;
+  const cost = (inputTokens / 1e6) * rates.input + (outputTokens / 1e6) * rates.output;
+  if(!cost) return;
+  try{
+    const prior = await settingGet('spend_total_usd', 0);
+    await settingSet('spend_total_usd', (prior || 0) + cost);
+    updateSpendDisplay();
+  }catch(e){ console.error('recordSpend failed', e); }
+}
+async function updateSpendDisplay(){
+  const el = document.getElementById('spendTotal');
+  if(!el) return;
+  const total = await settingGet('spend_total_usd', 0);
+  el.textContent = total > 0 ? `~$${total.toFixed(2)} spent (est.)` : '';
 }
 document.getElementById('llmProvider').addEventListener('change', (e)=>{
   setProvider(e.target.value);
@@ -2037,6 +2066,7 @@ async function showApp(){
   loadGithubStatus();
   loadStoredPlan();
   loadApiKeyStatus();
+  updateSpendDisplay();
 
   // new users (or anyone who's typed a stance but never clicked "update my
   // scoring") land on Profile instead of Scan. Gating on generated_rubric,
