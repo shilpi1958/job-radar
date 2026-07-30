@@ -150,7 +150,8 @@
 
   .status{font-size:12px;color:var(--text-dim);margin-bottom:14px;min-height:16px;}
   .status.scanning{color:var(--amber);}
-  .status.scanning::after{content:'';animation:dots 1.2s steps(4,end) infinite;}
+  .status.scanning::after, .hint.scanning::after{content:'';animation:dots 1.2s steps(4,end) infinite;}
+  .hint.scanning{color:var(--amber);}
   @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
 
   /* cards */
@@ -401,6 +402,7 @@
       <div class="save-hint" id="stanceSaveHint"></div>
       <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
       <span id="rubricStatus" class="hint"></span>
+      <div class="desc" style="margin-top:6px;">takes ~10-20s, one model call on your own key.</div>
     </div>
 
     <div class="panel">
@@ -510,6 +512,7 @@
       <div class="desc">concrete projects, built from your skills and watchlist companies. hit "build this" and it becomes a real repo, right here. private — nothing to publish or announce.</div>
       <div class="desc" id="planScanNotice" style="display:none;color:var(--amber);">you haven't scanned yet — this plan will use general market knowledge instead of what you've actually found. scan first for a sharper plan, or generate anyway.</div>
       <button class="scan" id="genPlanBtn">▸ generate plan</button>
+      <div class="desc" style="margin-top:6px;">takes ~20-40s, one model call on your own key.</div>
       <div class="status" id="planStatus"></div>
       <button class="link-btn" id="planPromptToggle" style="margin-top:8px;" type="button">◈ prompt used here</button>
       <div id="planPromptEditor" style="display:none;margin-top:10px;"></div>
@@ -1380,7 +1383,8 @@ async function generateRubricFromStance(){
     return;
   }
   btn.disabled = true;
-  status.textContent = 'generating your personalized scoring…';
+  status.textContent = 'generating your personalized scoring';
+  status.classList.add('scanning');
   try{
     const prompt = fillTemplate(RUBRIC_GENERATION_PROMPT, { STANCE_INPUT: stanceInput });
     const text = await callLLM({ prompt, maxTokens: 800 });
@@ -1395,6 +1399,7 @@ async function generateRubricFromStance(){
     status.textContent = `couldn't generate: ${e.message}`;
   }finally{
     btn.disabled = false;
+    status.classList.remove('scanning');
   }
 }
 document.getElementById('generateRubricBtn').addEventListener('click', generateRubricFromStance);
