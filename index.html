@@ -5,8 +5,6 @@
 <title>job radar</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth.js/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -1451,13 +1449,35 @@ async function generateRubricFromStance(){
 }
 document.getElementById('generateRubricBtn').addEventListener('click', generateRubricFromStance);
 
-/* ---- profile: CV upload & extraction ---- */
+/* ---- profile: CV upload & extraction ----
+   pdf.js and mammoth.js are loaded on demand, not up front — they're only ever
+   needed by someone uploading a .pdf/.docx CV, but as blocking <script> tags in
+   <head> they used to cost every single page load (~1MB combined) before the
+   login screen could even paint. */
+const CV_PARSER_SRCS = {
+  pdf: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  docx: 'https://cdnjs.cloudflare.com/ajax/libs/mammoth.js/1.6.0/mammoth.browser.min.js'
+};
+const cvParserPromises = {};
+function loadCvParser(kind){
+  if(!cvParserPromises[kind]){
+    cvParserPromises[kind] = new Promise((resolve, reject)=>{
+      const script = document.createElement('script');
+      script.src = CV_PARSER_SRCS[kind];
+      script.onload = resolve;
+      script.onerror = () => reject(new Error(`${kind} reader failed to load`));
+      document.head.appendChild(script);
+    });
+  }
+  return cvParserPromises[kind];
+}
 async function extractTextFromFile(file){
   const ext = file.name.split('.').pop().toLowerCase();
   if(ext === 'txt'){
     return await file.text();
   }
   if(ext === 'pdf'){
+    await loadCvParser('pdf');
     if(typeof pdfjsLib === 'undefined') throw new Error('pdf reader failed to load');
     // deliberately not using a worker — sandboxed environments often can't spin one up cleanly,
     // which makes pdf.js silently fall back to a "fake worker" and log a warning every time.
@@ -1474,6 +1494,7 @@ async function extractTextFromFile(file){
     return text;
   }
   if(ext === 'docx'){
+    await loadCvParser('docx');
     if(typeof mammoth === 'undefined') throw new Error('docx reader failed to load');
     const buf = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer: buf });
