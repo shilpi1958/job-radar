@@ -816,6 +816,36 @@ function requireApiKey(){
   }
   return { provider, key };
 }
+/* fetchWithRetry: retries a transient failure (network error, 429, 5xx) with
+   exponential backoff — up to 2 retries, 3 attempts total. A 4xx (bad key,
+   malformed request, not found) never retries, since the request itself is
+   the problem and trying again just wastes a call. Every external network
+   call in the app (Anthropic, OpenAI proxy, GitHub) goes through this. */
+async function fetchWithRetry(url, options = {}, maxRetries = 2){
+  let lastErr, lastResponse;
+  for(let attempt = 0; attempt <= maxRetries; attempt++){
+    try{
+      const response = await fetch(url, options);
+      // 4xx: the request itself is the problem, retrying won't help — return
+      // immediately so the caller's own error-body parsing runs on it.
+      if(response.ok || (response.status >= 400 && response.status < 500)){
+        return response;
+      }
+      lastResponse = response;
+    }catch(e){
+      lastErr = e;
+    }
+    if(attempt < maxRetries){
+      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+    }
+  }
+  // Retries exhausted: return the last non-ok response if we got one (so the
+  // caller's existing !response.ok handling still runs), otherwise the call
+  // never got a response at all and there's nothing to return but the error.
+  if(lastResponse) return lastResponse;
+  throw lastErr;
+}
+
 async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchMaxUses = 3 }){
   const auth = requireApiKey();
   if(!auth) throw new Error('missing API key');
@@ -823,7 +853,7 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
   if(auth.provider === 'openai'){
     const { data: { session } } = await db.auth.getSession();
     if(!session) throw new Error('sign in required for OpenAI calls');
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
+    const response = await fetchWithRetry(`${SUPABASE_URL}/functions/v1/openai-proxy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -856,7 +886,7 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
   if(webSearch){
     body.tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: webSearchMaxUses }];
   }
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1795,7 +1825,7 @@ async function buildProjectRepo(project, btnEl, linkEl, statsEl){
   btnEl.disabled = true;
   btnEl.textContent = 'creating…';
   try{
-    const createRes = await fetch('https://api.github.com/user/repos', {
+    const createRes = await fetchWithRetry('https://api.github.com/user/repos', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${creds.token}`, 'Accept': 'application/vnd.github+json' },
       body: JSON.stringify({ name: repoName, private: true, description: (project.project||'').slice(0,350) })
@@ -1808,7 +1838,7 @@ async function buildProjectRepo(project, btnEl, linkEl, statsEl){
 
     const readme = buildReadmeContent(project);
     const contentB64 = btoa(unescape(encodeURIComponent(readme)));
-    const readmeRes = await fetch(`https://api.github.com/repos/${creds.username}/${repoName}/contents/README.md`, {
+    const readmeRes = await fetchWithRetry(`https://api.github.com/repos/${creds.username}/${repoName}/contents/README.md`, {
       method: 'PUT',
       headers: { 'Authorization': `Bearer ${creds.token}`, 'Accept': 'application/vnd.github+json' },
       body: JSON.stringify({ message: 'initial README from job radar', content: contentB64 })
@@ -1893,12 +1923,12 @@ function activityBadge(pushedAt){
 
 async function fetchRepoStats(owner, repo, token){
   const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' };
-  const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+  const repoRes = await fetchWithRetry(`https://api.github.com/repos/${owner}/${repo}`, { headers });
   if(!repoRes.ok) throw new Error(`repo lookup failed (${repoRes.status})`);
   const repoData = await repoRes.json();
 
   let commits = null, contributors = null;
-  const statsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/stats/contributors`, { headers });
+  const statsRes = await fetchWithRetry(`https://api.github.com/repos/${owner}/${repo}/stats/contributors`, { headers });
   if(statsRes.status === 200){
     const stats = await statsRes.json();
     if(Array.isArray(stats)){
