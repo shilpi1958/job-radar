@@ -570,20 +570,31 @@ function smartMerge(existing, job){
     url: job.url || existing.url
   };
 }
-async function upsertJob(job){
+/* upsertJobsBatch: same smartMerge semantics as upsertJob, but for a whole scan's
+   worth of jobs in 2 round trips instead of N*2 — one select for every existing
+   row these jobs might collide with, one multi-row upsert. */
+async function upsertJobsBatch(jobs){
+  if(!jobs.length) return [];
   try{
-    const { data: existing } = await db.from('jobs').select('*').eq('company', job.company||'').eq('title', job.title||'').maybeSingle();
-    const merged = existing ? smartMerge(existing, job) : job;
-    const row = {
-      company: job.company||'', title: job.title||'',
-      location: merged.location||null, url: merged.url||null,
-      last_seen: new Date().toISOString(),
-      origins: Array.from(new Set([...(existing?.origins||[]), job.origin].filter(Boolean)))
-    };
-    const { data, error } = await db.from('jobs').upsert(row, { onConflict: 'company,title' }).select().maybeSingle();
-    if(error){ console.error('upsertJob failed', error); return existing || null; }
-    return data;
-  }catch(e){ console.error('upsertJob threw', e); return null; }
+    const companies = [...new Set(jobs.map(j => j.company||''))];
+    const { data: existingRows } = await db.from('jobs').select('*').in('company', companies);
+    const existingByKey = {};
+    (existingRows||[]).forEach(r => { existingByKey[r.company+'::'+r.title] = r; });
+
+    const rows = jobs.map(job => {
+      const existing = existingByKey[(job.company||'')+'::'+(job.title||'')];
+      const merged = existing ? smartMerge(existing, job) : job;
+      return {
+        company: job.company||'', title: job.title||'',
+        location: merged.location||null, url: merged.url||null,
+        last_seen: new Date().toISOString(),
+        origins: Array.from(new Set([...(existing?.origins||[]), job.origin].filter(Boolean)))
+      };
+    });
+    const { data, error } = await db.from('jobs').upsert(rows, { onConflict: 'company,title' }).select();
+    if(error){ console.error('upsertJobsBatch failed', error); return []; }
+    return data || [];
+  }catch(e){ console.error('upsertJobsBatch threw', e); return []; }
 }
 
 async function insertScan(scanType, meta){
@@ -597,15 +608,9 @@ async function insertScan(scanType, meta){
   }catch(e){ console.error('insertScan threw', e); return null; }
 }
 
-async function insertJobScanResult(jobId, scanId, job){
-  try{
-    await db.from('job_scan_results').insert({
-      job_id: jobId, scan_id: scanId, user_id: currentUserId,
-      score: job.score ?? null, gate: job.gate || null,
-      fit: job.fit || null, jd_summary: job.jd_summary || null,
-      skills_required: job.skills_required || [], source: job.source || null
-    });
-  }catch(e){ console.error('insertJobScanResult failed', e); }
+async function insertJobScanResultsBatch(rows){
+  if(!rows.length) return;
+  try{ await db.from('job_scan_results').insert(rows); }catch(e){ console.error('insertJobScanResultsBatch failed', e); }
 }
 
 async function insertSkillSignals(skills, scanId){
@@ -615,18 +620,37 @@ async function insertSkillSignals(skills, scanId){
   try{ await db.from('skill_signal').insert(rows); }catch(e){ console.error('insertSkillSignals failed', e); }
 }
 
-/* mergeIntoStack: upserts each fresh job into the SHARED pool, records this scan's
-   score/fit/gate as history scoped to the current user, tallies skills privately,
-   then returns this user's own current job list. */
+/* mergeIntoStack: upserts every fresh job into the SHARED pool in one batch, records
+   this scan's score/fit/gate as history scoped to the current user in one batch,
+   tallies skills privately, then returns this user's own current job list.
+   Previously did all of this per-job in a sequential loop (up to ~3 round trips per
+   job); batching collapses that to a fixed handful of round trips regardless of
+   how many jobs came back from a scan. */
 async function mergeIntoStack(freshJobs, origin, scanId){
   const broken = await getBrokenLinks();
-  for(const job of freshJobs){
+  const eligible = freshJobs.filter(job => {
     const key = jobKey(job);
-    if(!key.trim() || broken.includes(key)) continue;
-    const jobRow = await upsertJob(Object.assign({}, job, { origin }));
-    if(!jobRow) continue;
-    await insertJobScanResult(jobRow.id, scanId, job);
-  }
+    return key.trim() && !broken.includes(key);
+  });
+
+  const jobRows = await upsertJobsBatch(eligible.map(job => Object.assign({}, job, { origin })));
+  const jobRowByKey = {};
+  jobRows.forEach(r => { jobRowByKey[r.company+'::'+r.title] = r; });
+
+  const scanResultRows = eligible
+    .map(job => {
+      const jobRow = jobRowByKey[jobKey(job)];
+      if(!jobRow) return null;
+      return {
+        job_id: jobRow.id, scan_id: scanId, user_id: currentUserId,
+        score: job.score ?? null, gate: job.gate || null,
+        fit: job.fit || null, jd_summary: job.jd_summary || null,
+        skills_required: job.skills_required || [], source: job.source || null
+      };
+    })
+    .filter(Boolean);
+  await insertJobScanResultsBatch(scanResultRows);
+
   if(scanId) await insertSkillSignals(freshJobs.flatMap(j => j.skills_required || []), scanId);
   return await getUnifiedJobs();
 }
