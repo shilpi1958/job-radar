@@ -726,10 +726,18 @@ async function getWatchCompanies(){
   }catch(e){ return []; }
 }
 async function addWatchCompany(name){
-  try{ await db.from('watch_companies').upsert({ company_name: name, user_id: currentUserId }, { onConflict: 'user_id,company_name' }); }catch(e){ console.error(e); }
+  try{
+    const { error } = await db.from('watch_companies').upsert({ company_name: name, user_id: currentUserId }, { onConflict: 'user_id,company_name' });
+    if(error){ console.error(error); return false; }
+    return true;
+  }catch(e){ console.error(e); return false; }
 }
 async function removeWatchCompany(name){
-  try{ await db.from('watch_companies').delete().eq('company_name', name).eq('user_id', currentUserId); }catch(e){ console.error(e); }
+  try{
+    const { error } = await db.from('watch_companies').delete().eq('company_name', name).eq('user_id', currentUserId);
+    if(error){ console.error(error); return false; }
+    return true;
+  }catch(e){ console.error(e); return false; }
 }
 
 /* ---- plans: private per user, every generation kept, not overwritten ---- */
@@ -1233,7 +1241,13 @@ function render(){
       if(!company || watchCompanies.includes(company)) return;
       watchCompanies.push(company);
       renderWatchChips();
-      await addWatchCompany(company);
+      const ok = await addWatchCompany(company);
+      if(!ok){
+        watchCompanies = watchCompanies.filter(c => c !== company);
+        renderWatchChips();
+        btn.title = "couldn't save — check your connection and try again";
+        return;
+      }
       btn.disabled = true;
       btn.textContent = '✓ tracked';
       btn.title = 'already on your watchlist';
@@ -1935,7 +1949,12 @@ async function renderWatchChips(){
       if(!confirm(`Stop tracking ${name}?${projectNote}`)) return;
       watchCompanies.splice(idx, 1);
       renderWatchChips();
-      await removeWatchCompany(name);
+      const ok = await removeWatchCompany(name);
+      if(!ok){
+        watchCompanies.splice(idx, 0, name);
+        renderWatchChips();
+        alert("couldn't remove that — check your connection and try again");
+      }
     });
   });
 }
@@ -1945,7 +1964,12 @@ document.getElementById('watchInput').addEventListener('keydown', async (e)=>{
     if(val && !watchCompanies.includes(val)){
       watchCompanies.push(val);
       renderWatchChips();
-      await addWatchCompany(val);
+      const ok = await addWatchCompany(val);
+      if(!ok){
+        watchCompanies = watchCompanies.filter(c => c !== val);
+        renderWatchChips();
+        alert("couldn't save that — check your connection and try again");
+      }
     }
     e.target.value = '';
   }
