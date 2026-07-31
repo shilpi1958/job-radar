@@ -1732,15 +1732,18 @@ async function buildProjectRepo(project, btnEl, linkEl, statsEl){
       headers: { 'Authorization': `Bearer ${creds.token}`, 'Accept': 'application/vnd.github+json' },
       body: JSON.stringify({ message: 'initial README from job radar', content: contentB64 })
     });
+    let readmeFailed = false;
     if(!readmeRes.ok){
       const errBody = await readmeRes.json().catch(()=>({}));
       console.warn('repo created but README failed:', errBody.message);
+      readmeFailed = true;
     }
 
     await addPortfolioRepo(project.project, repoData.html_url, project.target_company, project.skill_targeted);
 
     btnEl.style.display = 'none';
-    linkEl.innerHTML = `<a href="${repoData.html_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>`;
+    const readmeWarning = readmeFailed ? ' <span style="color:var(--danger);" title="the repo was created but the starter README failed to write — add one yourself">⚠ no README</span>' : '';
+    linkEl.innerHTML = `<a href="${repoData.html_url}" target="_blank" rel="noopener" style="color:var(--phosphor);">repo created →</a>${readmeWarning}`;
     lastRenderedSlugs.add(slugify(project.project));
     if(statsEl) renderRepoStats(statsEl, repoData.html_url);
   }catch(err){
