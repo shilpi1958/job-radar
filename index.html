@@ -546,19 +546,29 @@ let currentUserId = null;
 
 function jobKey(job){ return (job.company||'') + '::' + (job.title||''); }
 
-/* ---- settings: one row per (user, key) ---- */
+/* ---- settings: one row per (user, key) ----
+   Read-mostly within a session (stance, rubric, prompt overrides, etc. don't
+   change except through an explicit save), but were being re-fetched from
+   scratch by every call site that needed them — sometimes twice within the
+   same user action (e.g. scan and plan generation each independently
+   fetching stance+rubric). Cached per key, invalidated on set/delete. */
+const settingCache = new Map();
 async function settingGet(key, fallback){
+  if(settingCache.has(key)) return settingCache.get(key);
   try{
     const { data, error } = await db.from('app_settings').select('value').eq('key', key).eq('user_id', currentUserId).maybeSingle();
-    if(error || !data) return fallback;
-    return data.value;
+    const value = (error || !data) ? fallback : data.value;
+    settingCache.set(key, value);
+    return value;
   }catch(e){ return fallback; }
 }
 async function settingSet(key, value){
+  settingCache.delete(key);
   try{ await db.from('app_settings').upsert({ key, value, user_id: currentUserId, updated_at: new Date().toISOString() }); }
   catch(e){ console.error('settingSet failed', key, e); }
 }
 async function settingDelete(key){
+  settingCache.delete(key);
   try{ await db.from('app_settings').delete().eq('key', key).eq('user_id', currentUserId); }catch(e){}
 }
 
@@ -712,17 +722,25 @@ async function tallySkills(){ /* kept as a no-op shim — tallying now happens i
 
 async function getSkillTally(){
   try{
-    const { data, error } = await db.from('skill_signal').select('skill').eq('user_id', currentUserId);
+    const [{ data, error }, { count }] = await Promise.all([
+      db.from('skill_signal').select('skill').eq('user_id', currentUserId),
+      db.from('job_scan_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUserId)
+    ]);
     if(error || !data) return { tally: {}, postingsAnalyzed: 0 };
     const tally = {};
     data.forEach(r => { tally[r.skill] = (tally[r.skill]||0) + 1; });
-    const { count } = await db.from('job_scan_results').select('id', { count: 'exact', head: true }).eq('user_id', currentUserId);
     return { tally, postingsAnalyzed: count || 0 };
   }catch(e){ return { tally: {}, postingsAnalyzed: 0 }; }
 }
 
-/* ---- portfolio: private per user ---- */
+/* ---- portfolio: private per user ----
+   getPortfolio() gets called several times in a row across a single plan
+   render (once for the prompt, once for build buttons, once for older
+   builds, once for watchlist readiness counts) — cached for the session,
+   invalidated the moment a new repo is actually added. */
+let portfolioCache = null;
 async function addPortfolioRepo(title, url, targetCompany, skillTargeted){
+  portfolioCache = null;
   try{
     await db.from('portfolio_repos').insert({
       project_title: title,
@@ -734,9 +752,11 @@ async function addPortfolioRepo(title, url, targetCompany, skillTargeted){
   }catch(e){ console.error(e); }
 }
 async function getPortfolio(){
+  if(portfolioCache) return portfolioCache;
   try{
     const { data } = await db.from('portfolio_repos').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-    return data || [];
+    portfolioCache = data || [];
+    return portfolioCache;
   }catch(e){ return []; }
 }
 
@@ -1605,8 +1625,10 @@ async function buildCandidateContext(){
    personalized stance/rubric yet (new users before their first "update my
    scoring" click, or anyone who skips the "what you're looking for" panel) */
 async function buildStanceAndRubric(){
-  const stance = await settingGet('generated_stance', CANDIDATE_STANCE_TEXT);
-  const rubric = await settingGet('generated_rubric', RUBRIC_TEXT);
+  const [stance, rubric] = await Promise.all([
+    settingGet('generated_stance', CANDIDATE_STANCE_TEXT),
+    settingGet('generated_rubric', RUBRIC_TEXT)
+  ]);
   return { stance, rubric };
 }
 
