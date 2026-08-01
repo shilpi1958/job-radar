@@ -707,9 +707,22 @@ async function markLinkBroken(key){
   if(!confirm('Mark this as a dead link? It\'ll be removed and blocked from ever showing up again.')) return;
   const job = currentResults.find(j => jobKey(j) === key);
   if(!job || !job.id){ alert('Could not find that job to flag.'); return; }
-  try{ await db.from('broken_links').upsert({ job_id: job.id }); }catch(e){ console.error(e); }
-  await loadStack();
-  await renderWatchResults();
+  try{
+    const { error } = await db.from('broken_links').upsert({ job_id: job.id });
+    if(error) throw error;
+  }catch(e){
+    console.error(e);
+    alert("couldn't mark that as broken — check your connection and try again");
+    return;
+  }
+  // remove just this one card instead of re-fetching + re-rendering the entire
+  // stack — flagging one dead link shouldn't cost the same as loading fresh.
+  currentResults = currentResults.filter(j => jobKey(j) !== key);
+  const container = document.getElementById('results');
+  const card = container.querySelector(`.card[data-job-key="${CSS.escape(encodeURIComponent(key))}"]`);
+  if(card) card.remove();
+  if(currentResults.length === 0) render();
+  renderWatchResults();
 }
 
 async function loadStack(){
@@ -1276,7 +1289,7 @@ function render(){
     const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
     const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
     return `
-    <div class="card">
+    <div class="card" data-job-key="${encodeURIComponent(key)}">
       <div class="card-top">
         <div>
           <h3>${escapeHtml(job.title||'')}</h3>
