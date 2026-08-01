@@ -1256,6 +1256,16 @@ async function runScan(){
   const btn = document.getElementById('scanBtn');
   const signature = JSON.stringify({kw, loc, company, tags: [...activeTags].sort()});
 
+  // pre-flight: catch obviously-off inputs before spending a real, web-search-enabled
+  // call on a request that was never going to produce a useful result.
+  if(!kw && !loc && activeTags.size === 0 && customTags.length === 0){
+    if(!confirm('No keywords, location, or focus areas set — this will search as broadly as possible with no real criteria to narrow it down. Run it anyway?')) return;
+  }
+  const hasGeneratedStance = await settingGet('generated_stance', null);
+  if(!hasGeneratedStance){
+    if(!confirm("You haven't set up \"what you're looking for\" in Profile yet, so this scan will score against a generic placeholder instead of your own criteria. Go set that up first for a real result — or run this scan anyway?")) return;
+  }
+
   const scanLog = await settingGet('scan_log', {});
 
   const lastRun = scanLog[signature];
