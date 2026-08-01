@@ -859,7 +859,7 @@ async function fetchWithRetry(url, options = {}, maxRetries = 2){
   throw lastErr;
 }
 
-async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchMaxUses = 3 }){
+async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchMaxUses = 3, outputSchema = null }){
   const auth = requireApiKey();
   if(!auth) throw new Error('missing API key');
 
@@ -898,6 +898,12 @@ async function callLLM({ prompt, maxTokens = 1000, webSearch = false, webSearchM
   };
   if(webSearch){
     body.tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: webSearchMaxUses }];
+  }
+  // structured outputs: incompatible with citations and message prefill (neither
+  // used here), and not currently combined with webSearch in this app — a call
+  // site that needs both should be tested for that combination before relying on it.
+  if(outputSchema){
+    body.output_config = { format: { type: 'json_schema', schema: outputSchema } };
   }
   const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -1096,6 +1102,51 @@ Return ONLY raw JSON, no markdown fences, no preamble, never use double-quote ch
  "cadence": "one short sentence, under 25 words"
 }
 Be terse everywhere — this has to fit a strict output budget. Exactly 3 skill_gaps and exactly 3 side_projects, no more. Be specific and concrete, no generic career advice, no mention of publishing or posting anywhere.`;
+
+/* PLAN_OUTPUT_SCHEMA: constrains the plan response at the API level via
+   output_config.format, so malformed JSON becomes structurally impossible for
+   this shape instead of something to parse-and-recover from after the fact.
+   Mirrors DEFAULT_PROMPT_PLAN's documented shape exactly. The field-by-field
+   recovery path (recoverKeyedArray/recoverKeyedString) stays as a defensive
+   fallback for the rare case JSON.parse still trips (e.g. a max_tokens cutoff
+   mid-response), not as the primary path anymore. */
+const PLAN_OUTPUT_SCHEMA = {
+  type: 'object',
+  properties: {
+    skill_gaps: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          skill: { type: 'string' },
+          why: { type: 'string' },
+          action: { type: 'string' }
+        },
+        required: ['skill', 'why', 'action'],
+        additionalProperties: false
+      }
+    },
+    side_projects: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          effort: { type: 'string' },
+          project: { type: 'string' },
+          target_company: { type: 'string' },
+          skill_targeted: { type: 'string' },
+          proof: { type: 'string' },
+          why_it_lands: { type: 'string' }
+        },
+        required: ['effort', 'project', 'target_company', 'skill_targeted', 'proof', 'why_it_lands'],
+        additionalProperties: false
+      }
+    },
+    cadence: { type: 'string' }
+  },
+  required: ['skill_gaps', 'side_projects', 'cadence'],
+  additionalProperties: false
+};
 
 const PROMPT_DEFS = [
   { key: 'scan', label: 'scan — finds & scores jobs (optionally scoped to one company)', default: DEFAULT_PROMPT_SCAN, placeholders: ['FOCUS_AREAS','COMPANY_FILTER','KEYWORDS','LOCATION','CANDIDATE_PROFILE','CANDIDATE_STANCE','RUBRIC'] },
@@ -1724,7 +1775,7 @@ document.getElementById('genPlanBtn').addEventListener('click', async ()=>{
   });
 
   try{
-    const textBlocks = await callLLM({ prompt, maxTokens: 1000 });
+    const textBlocks = await callLLM({ prompt, maxTokens: 1000, outputSchema: PLAN_OUTPUT_SCHEMA });
     let clean = textBlocks.replace(/```json|```/g,'').trim();
     const firstBrace = clean.indexOf('{');
     const lastBrace = clean.lastIndexOf('}');
