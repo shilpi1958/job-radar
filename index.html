@@ -291,7 +291,7 @@
 
   <div id="viewScan">
   <div class="panel">
-    <h2>◆ search criteria</h2>
+    <h2>search criteria</h2>
     <div class="row">
       <div class="field">
         <label>keywords</label>
@@ -309,7 +309,7 @@
   </div>
 
   <div class="panel">
-    <h2>◆ focus areas</h2>
+    <h2>focus areas</h2>
     <div class="desc">click a chip to toggle it · ✕ removes it (re-add anytime below)</div>
     <div class="chips" id="chips">
       <span class="chip" data-tag="healthcare"><span class="chip-label">healthcare AI / EHR</span><span class="chip-x">✕</span></span>
@@ -339,7 +339,7 @@
   <div id="results"></div>
 
   <div class="panel">
-    <h2>◆ sources this scan actually uses</h2>
+    <h2>sources this scan actually uses</h2>
     <div class="desc">ordered by priority. each result shows which one it came from.</div>
     <div class="source-list">
       <div class="source-row"><span class="source-dot live"></span><b>live web search</b> — company career pages, checked first, direct source</div>
@@ -379,14 +379,14 @@
 
   <div id="viewProfile" style="display:none">
     <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:rgba(93,255,158,0.08);">
-      <h2>▸ welcome — 2 things first</h2>
+      <h2>welcome — 2 things first</h2>
       <div class="desc" style="color:var(--text);">
         <b id="onboardStep1">1.</b> what you're looking for, below — click "update my scoring."
         <b id="onboardStep2">2.</b> further down, connect an AI key — required to scan, costs real spend on your own key.
       </div>
     </div>
     <div class="panel">
-      <h2>◆ how it works</h2>
+      <h2>how it works</h2>
       <div class="desc">
         <b>1. scan</b> — search live postings against your profile. <b>2. track</b> — see a company worth targeting? hit "+ watchlist" on that result.
         <b>3. generate a plan</b> — your proof-of-work plan builds projects aimed at your watchlist companies and skill gaps.
@@ -426,7 +426,7 @@
     <div class="section-label">connections</div>
 
     <div class="panel" style="border-color:var(--phosphor-dim);">
-      <h2>▸ AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
+      <h2>AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
       <div class="desc" id="apiKeyInfoText" style="display:none;">
         required — nothing that calls the model works without a key for the provider you pick below.
         both keys are stored only in <b>this browser</b>, never written to Supabase.
@@ -706,7 +706,7 @@ async function getBrokenLinks(){
 async function markLinkBroken(key){
   if(!confirm('Mark this as a dead link? It\'ll be removed and blocked from ever showing up again.')) return;
   const job = currentResults.find(j => jobKey(j) === key);
-  if(!job || !job.id){ alert('Could not find that job to flag.'); return; }
+  if(!job || !job.id){ alert("couldn't find that job to flag"); return; }
   try{
     const { error } = await db.from('broken_links').upsert({ job_id: job.id });
     if(error) throw error;
@@ -824,7 +824,7 @@ function requireApiKey(){
   const key = provider === 'openai' ? getOpenAIKey() : getAnthropicKey();
   if(!key){
     const label = provider === 'openai' ? 'OpenAI' : 'Claude';
-    alert(`Add your ${label} API key first — go to Profile → "connect your AI keys."`);
+    alert(`add your ${label} API key first — go to Profile → "connect your AI keys"`);
     return null;
   }
   return { provider, key };
@@ -1890,7 +1890,7 @@ ${project.why_it_lands ? `\n## Why it lands in an interview\n${project.why_it_la
 async function buildProjectRepo(project, btnEl, linkEl, statsEl){
   const creds = await getGithubCreds();
   if(!creds.username || !creds.token){
-    alert('Connect GitHub first — scroll up to "connect GitHub" and save your username + token.');
+    alert('connect GitHub first — scroll up to "connect GitHub" and save your username + token');
     return;
   }
   const repoName = slugify(project.project);
@@ -1935,7 +1935,7 @@ async function buildProjectRepo(project, btnEl, linkEl, statsEl){
     console.error(err);
     btnEl.disabled = false;
     btnEl.textContent = '▸ build this';
-    alert('Could not create the repo: ' + err.message);
+    alert("couldn't create the repo: " + err.message);
   }
 }
 
