@@ -138,6 +138,15 @@
     background:transparent;color:var(--phosphor);border:1px solid var(--phosphor-dim);
   }
   button.scan.secondary:hover{background:var(--phosphor-soft);border-color:var(--phosphor);}
+  .auth-stack{display:flex;flex-direction:column;gap:10px;align-items:stretch;}
+  .auth-stack .scan{width:100%;}
+  .auth-or{
+    display:flex;align-items:center;gap:12px;margin:4px 0;
+    color:var(--text-dim);font-size:13px;
+  }
+  .auth-or::before, .auth-or::after{
+    content:'';flex:1;height:1px;background:var(--panel-line);
+  }
   .section-label{
     font-family:var(--font-body);font-size:12px;color:var(--text-dim);font-weight:600;
     margin:32px 0 8px 2px;
@@ -260,13 +269,15 @@
     <div class="brand" style="font-family:var(--font-display);font-weight:700;font-size:36px;color:var(--ink);letter-spacing:-0.03em;margin-bottom:18px;"><span class="dot"></span>job radar</div>
     <h1 style="font-family:var(--font-display);font-size:26px;font-weight:600;color:var(--ink);margin:0 0 10px;letter-spacing:-0.02em;line-height:1.25;">find the role. build the proof.</h1>
     <p class="desc" style="margin:0 auto 28px;max-width:34ch;text-align:center;">scan jobs that fit you, track companies worth targeting, turn gaps into side projects.</p>
-    <div class="row" style="margin-bottom:12px;">
-      <div class="field">
-        <input type="email" id="authEmail" placeholder="you@example.com" style="text-align:center;">
+    <div class="auth-stack">
+      <button class="scan" id="authGoogleBtn">▸ continue with Google</button>
+      <div class="auth-or">or email a magic link</div>
+      <div class="row" style="margin-bottom:0;">
+        <div class="field">
+          <input type="email" id="authEmail" placeholder="you@example.com" style="text-align:center;">
+        </div>
       </div>
-    </div>
-    <div class="actions" style="justify-content:center;">
-      <button class="scan" id="authSendBtn">▸ send magic link</button>
+      <button class="scan secondary" id="authSendBtn">▸ send magic link</button>
     </div>
     <div class="save-hint" id="authStatus" style="text-align:center;height:auto;min-height:14px;"></div>
     <div class="hint" style="margin-top:16px;">private to you · no password</div>
@@ -2298,12 +2309,36 @@ function showLoginGate(){
   document.getElementById('appShell').style.display = 'none';
 }
 
+document.getElementById('authGoogleBtn').addEventListener('click', async ()=>{
+  const status = document.getElementById('authStatus');
+  const btn = document.getElementById('authGoogleBtn');
+  const magicBtn = document.getElementById('authSendBtn');
+  btn.disabled = true;
+  magicBtn.disabled = true;
+  status.textContent = 'redirecting to Google…';
+  const { error } = await db.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: AUTH_REDIRECT_URL }
+  });
+  // On success the browser navigates away. Only land here on failure.
+  if(error){
+    const detail = [error.message, error.code, error.status].filter(Boolean).join(' · ')
+      || JSON.stringify(error, Object.getOwnPropertyNames(error));
+    status.textContent = `couldn't start Google sign-in: ${detail || 'unknown error — check Supabase Auth → Providers → Google'}`;
+    console.error('signInWithOAuth failed', error);
+    btn.disabled = false;
+    magicBtn.disabled = false;
+  }
+});
+
 document.getElementById('authSendBtn').addEventListener('click', async ()=>{
   const email = document.getElementById('authEmail').value.trim();
   const status = document.getElementById('authStatus');
   const btn = document.getElementById('authSendBtn');
+  const googleBtn = document.getElementById('authGoogleBtn');
   if(!email){ status.textContent = 'enter your email first'; return; }
   btn.disabled = true;
+  googleBtn.disabled = true;
   status.textContent = 'sending…';
   const { error } = await db.auth.signInWithOtp({
     email,
@@ -2318,6 +2353,7 @@ document.getElementById('authSendBtn').addEventListener('click', async ()=>{
     status.textContent = `check ${email} for a sign-in link — open it once, from a fresh email`;
   }
   btn.disabled = false;
+  googleBtn.disabled = false;
 });
 
 document.getElementById('signOutBtn').addEventListener('click', async ()=>{
@@ -2375,8 +2411,11 @@ async function initAuth(){
   }else{
     showLoginGate();
     if(recovered.error){
+      const err = String(recovered.error).toLowerCase();
       document.getElementById('authStatus').textContent =
-        `sign-in link expired or already used — request a new one`;
+        /expired|otp|already|email/.test(err)
+          ? 'sign-in link expired or already used — request a new one'
+          : `couldn't sign in: ${recovered.error}`;
     }
   }
   db.auth.onAuthStateChange((event, session)=>{
