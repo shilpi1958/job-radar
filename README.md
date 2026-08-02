@@ -12,7 +12,7 @@ concrete technical side projects, and turns those projects into real GitHub repo
   gets smarter as more people use it — same posting gets deduped once). Everything else
   — CV, skills profile, scores, plans, watchlist, portfolio — is private per user via
   Postgres row-level security (`auth.uid() = user_id`).
-- **Auth:** Supabase Auth, magic-link email. No passwords.
+- **Auth:** Supabase Auth — Google OAuth plus magic-link email fallback. No passwords.
 - **AI calls:** BYOK (bring your own key). Each user can paste an Anthropic and/or
   OpenAI API key in Profile, pick the active provider from a dropdown, and keys stay in
   `localStorage` only — never written to Supabase tables. Claude calls go straight from
@@ -34,9 +34,14 @@ concrete technical side projects, and turns those projects into real GitHub repo
    `<script>` block to match your project.
 5. Auth → URL Configuration: add every origin you'll actually sign in from (production
    URL, `http://localhost:<port>/**` for local dev) to Redirect URLs — Supabase silently
-   falls back to the Site URL for anything not on that list, so magic links sent while
-   testing locally will otherwise land you back on production instead.
-6. Auth → Email templates: default magic-link template works out of the box. Free tier
+   falls back to the Site URL for anything not on that list, so magic links / OAuth
+   returns while testing locally will otherwise land you back on production instead.
+6. Auth → Providers → Google: enable the provider. In [Google Cloud Console](https://console.cloud.google.com/)
+   create an OAuth 2.0 Client ID (Web application). Authorized JavaScript origins:
+   your production origin and any local origins. Authorized redirect URI: your Supabase
+   callback — `https://<project-ref>.supabase.co/auth/v1/callback`. Paste the Client ID
+   and Client Secret into the Supabase Google provider form and save.
+7. Auth → Email templates: default magic-link template works out of the box. Free tier
    rate-limits outbound email (a handful per hour) — fine for testing, but needs a
    custom SMTP provider before real traffic. This project uses
    [Resend](https://resend.com): Project Settings → Authentication → Emails → SMTP
@@ -44,7 +49,7 @@ concrete technical side projects, and turns those projects into real GitHub repo
    `resend`, password = your Resend API key. `scripts/send-test-email.js` sends a
    one-off test email via the Resend SDK directly (not through Supabase) to sanity
    check the API key works before wiring it into Supabase's SMTP settings.
-7. Deploy the OpenAI proxy (needed only if anyone will use the OpenAI provider):
+8. Deploy the OpenAI proxy (needed only if anyone will use the OpenAI provider):
 
    ```bash
    npx supabase login
