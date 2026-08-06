@@ -151,6 +151,31 @@
     font-family:var(--font-body);font-size:12px;color:var(--text-dim);font-weight:600;
     margin:32px 0 8px 2px;
   }
+  .onboard-steps{
+    display:flex;align-items:flex-start;gap:0;margin-bottom:12px;
+  }
+  .onboard-step{
+    display:flex;align-items:flex-start;gap:10px;flex:1;
+  }
+  .onboard-step .badge{
+    width:24px;height:24px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-body);font-weight:700;font-size:12px;
+    border:1.5px solid var(--panel-line);color:var(--text-dim);background:var(--panel);
+  }
+  .onboard-step .label{font-size:13px;color:var(--text-dim);line-height:1.4;padding-top:2px;}
+  .onboard-step .label b{display:block;color:var(--text);font-weight:600;margin-bottom:1px;}
+  .onboard-step.done .badge{border-color:var(--phosphor);background:var(--phosphor);color:#f7faf7;}
+  .onboard-step.done .label{color:var(--text-dim);}
+  .onboard-step.done .label b{color:var(--phosphor-dim);text-decoration:line-through;}
+  .onboard-step.current .badge{border-color:var(--phosphor);color:var(--phosphor);background:var(--phosphor-soft);}
+  .onboard-step.current .label b{color:var(--text);}
+  .onboard-connector{
+    flex-shrink:0;width:28px;height:1.5px;background:var(--panel-line);margin:12px 4px 0;
+  }
+  .onboard-banner{border-color:var(--phosphor);background:var(--phosphor-soft);}
+  .onboard-banner.done{border-color:var(--panel-line);background:var(--panel);}
+  .onboard-banner.done .badge{border-color:var(--phosphor);background:var(--phosphor);color:#f7faf7;}
   .info-toggle{
     background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
     padding:0;margin-left:4px;vertical-align:middle;
@@ -305,7 +330,7 @@
     </div>
   </div>
 
-  <div id="viewScan">
+  <div id="viewScan" style="display:none">
   <div class="panel">
     <h2>search criteria</h2>
     <div class="row">
@@ -394,11 +419,23 @@
   </div>
 
   <div id="viewProfile" style="display:none">
-    <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:var(--phosphor-soft);">
-      <h2>welcome — 2 things first</h2>
-      <div class="desc" style="color:var(--text);">
-        <b id="onboardStep1">1.</b> what you're looking for, below — this generates your scoring automatically.
-        <b id="onboardStep2">2.</b> connect an AI key, right after — required to scan, costs real spend on your own key.
+    <div id="onboardingBanner" class="panel onboard-banner" style="display:none;">
+      <h2 id="onboardHeading">welcome — 3 things first</h2>
+      <div class="onboard-steps">
+        <div class="onboard-step" id="onboardStep1">
+          <div class="badge">1</div>
+          <div class="label"><b>write your stance</b>role, background, hard no's, location — below</div>
+        </div>
+        <div class="onboard-connector"></div>
+        <div class="onboard-step" id="onboardStep2">
+          <div class="badge">2</div>
+          <div class="label"><b>generate scoring</b>click "update my scoring" once you've written it</div>
+        </div>
+        <div class="onboard-connector"></div>
+        <div class="onboard-step" id="onboardStep3">
+          <div class="badge">3</div>
+          <div class="label"><b>connect an AI key</b>required to scan — costs real spend on your own key</div>
+        </div>
       </div>
     </div>
 
@@ -2272,7 +2309,10 @@ async function initLoad(){
 /* ================= auth gate ================= */
 async function showApp(){
   document.getElementById('authGate').style.display = 'none';
-  document.getElementById('appShell').style.display = '';
+  // appShell stays hidden until we know which view to land on — every child
+  // view starts display:none in markup, so revealing appShell before a
+  // switchView() call would otherwise flash whatever the last-active nav
+  // button happened to be (previously always Scan).
   await initLoad();
   loadCustomTags();
   applyRemovedPresets();
@@ -2290,33 +2330,51 @@ async function showApp(){
   // without this, a scan would silently fall back to the generic default
   // rubric with no indication that's what happened.
   const { rubricDone } = await refreshOnboardingUI();
-  if(!rubricDone) switchView('profile');
+  switchView(rubricDone ? 'scan' : 'profile');
+  document.getElementById('appShell').style.display = '';
 }
 
-// Single source of truth for "is onboarding done" — both the banner and the
-// deferred profile section (skills/CV/GitHub) read from this, so there's one
-// place that decides what "done" means instead of each caller re-deriving it.
+// Single source of truth for "is onboarding done" — both the step tracker and
+// the deferred profile section (skills/CV/GitHub) read from this, so there's
+// one place that decides what "done" means instead of each caller re-deriving it.
 async function onboardingState(){
+  const stance = (await settingGet('job_stance', '')).trim();
   const generatedRubric = await settingGet('generated_rubric', null);
   return {
+    stanceDone: !!stance,
     rubricDone: !!generatedRubric,
     keyDone: !!(getAnthropicKey() || getOpenAIKey())
   };
 }
+function setOnboardStepClass(el, state){
+  el.classList.remove('done', 'current');
+  if(state) el.classList.add(state);
+}
 async function refreshOnboardingUI(){
-  const { rubricDone, keyDone } = await onboardingState();
+  const { stanceDone, rubricDone, keyDone } = await onboardingState();
   const step1 = document.getElementById('onboardStep1');
   const step2 = document.getElementById('onboardStep2');
-  step1.style.textDecoration = rubricDone ? 'line-through' : 'none';
-  step1.style.opacity = rubricDone ? '0.5' : '1';
-  step2.style.textDecoration = keyDone ? 'line-through' : 'none';
-  step2.style.opacity = keyDone ? '0.5' : '1';
+  const step3 = document.getElementById('onboardStep3');
+  // current = the first not-yet-done step, so exactly one step is ever
+  // highlighted as "do this now" instead of all remaining steps looking equal.
+  setOnboardStepClass(step1, stanceDone ? 'done' : 'current');
+  setOnboardStepClass(step2, rubricDone ? 'done' : (stanceDone ? 'current' : null));
+  setOnboardStepClass(step3, keyDone ? 'done' : (rubricDone ? 'current' : null));
+
   const done = rubricDone && keyDone;
-  document.getElementById('onboardingBanner').style.display = done ? 'none' : '';
+  const heading = document.getElementById('onboardHeading');
+  const banner = document.getElementById('onboardingBanner');
+  if(done){
+    heading.textContent = "you're ready — scoring is set up and your AI key is connected";
+  }else{
+    heading.textContent = 'welcome — 3 things first';
+  }
+  banner.classList.toggle('done', done);
+  banner.style.display = '';
   document.getElementById('onboardingRest').style.display = done ? '' : 'none';
   document.getElementById('profileRestToggle').style.display = done ? '' : 'none';
   if(!done) document.getElementById('profileRest').style.display = 'none';
-  return { rubricDone, keyDone };
+  return { stanceDone, rubricDone, keyDone };
 }
 function showLoginGate(){
   document.getElementById('authGate').style.display = '';
@@ -2332,7 +2390,10 @@ document.getElementById('authGoogleBtn').addEventListener('click', async ()=>{
   status.textContent = 'redirecting to Google…';
   const { error } = await db.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: AUTH_REDIRECT_URL }
+    options: {
+      redirectTo: AUTH_REDIRECT_URL,
+      queryParams: { prompt: 'select_account' }
+    }
   });
   // On success the browser navigates away. Only land here on failure.
   if(error){
