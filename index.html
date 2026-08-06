@@ -397,11 +397,12 @@
     <div id="onboardingBanner" class="panel" style="display:none;border-color:var(--phosphor);background:var(--phosphor-soft);">
       <h2>welcome — 2 things first</h2>
       <div class="desc" style="color:var(--text);">
-        <b id="onboardStep1">1.</b> what you're looking for, below — click "update my scoring."
-        <b id="onboardStep2">2.</b> further down, connect an AI key — required to scan, costs real spend on your own key.
+        <b id="onboardStep1">1.</b> what you're looking for, below — this generates your scoring automatically.
+        <b id="onboardStep2">2.</b> connect an AI key, right after — required to scan, costs real spend on your own key.
       </div>
     </div>
-    <div class="panel">
+
+    <div class="panel" id="onboardingRest" style="display:none;">
       <h2>how it works</h2>
       <div class="desc">
         <b>1. scan</b> — search live postings against your profile. <b>2. track</b> — see a company worth targeting? hit "+ watchlist" on that result.
@@ -409,10 +410,11 @@
         <b>4. build</b> — cherry-pick a project, hit "build this," and it becomes a real GitHub repo with live activity stats, right there.
       </div>
     </div>
+
     <div class="section-label">your background</div>
     <div class="panel">
       <h2>1. what you're looking for</h2>
-      <div class="desc">plain language: role, background, hard no's, location. this is what scoring is based on. saved automatically — click "update my scoring" after any change.<br><br><i>example: "I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."</i></div>
+      <div class="desc">plain language: role, background, hard no's, location. this is what scoring is based on.<br><br><i>example: "I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."</i></div>
       <textarea id="stanceBox" placeholder="role, background, hard no's, location — write it in your own words"></textarea>
       <div class="save-hint" id="stanceSaveHint"></div>
       <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
@@ -420,29 +422,8 @@
       <div class="desc" style="margin-top:6px;">takes ~10-20s, one model call on your own key.</div>
     </div>
 
-    <div class="panel">
-      <h2>2. what you've got</h2>
-      <div class="desc">your proof points — feeds the gap analysis and plan. saved automatically.</div>
-      <textarea id="skillsBox"></textarea>
-      <div class="save-hint" id="saveHint"></div>
-    </div>
-
-    <div class="panel">
-      <h2>upload your CV</h2>
-      <div class="desc">optional. pulls text from .pdf/.docx/.txt into every scan and plan. never leaves your storage.</div>
-      <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <label for="cvUpload" class="scan" style="display:inline-block;cursor:pointer;">▸ choose file</label>
-        <span id="cvFileName" style="font-size:12px;color:var(--text-dim);"></span>
-        <button id="cvRemove" class="star" style="display:none;width:auto;padding:0 10px;">remove</button>
-      </div>
-      <div class="save-hint" id="cvStatus"></div>
-    </div>
-
-    <div class="section-label">connections</div>
-
-    <div class="panel" style="border-color:var(--phosphor-dim);">
-      <h2>AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
+    <div class="panel" style="border-color:var(--phosphor-dim);" id="apiKeyPanel">
+      <h2>2. AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
       <div class="desc" id="apiKeyInfoText" style="display:none;">
         required — nothing that calls the model works without a key for the provider you pick below.
         both keys are stored only in <b>this browser</b>, never written to Supabase.
@@ -485,34 +466,59 @@
       </div>
     </div>
 
-    <div class="panel">
-      <h2>GitHub <button class="info-toggle" id="ghInfoBtn" title="what this is for / where it's stored" type="button">ⓘ</button></h2>
-      <div class="desc" id="ghInfoText" style="display:none;">
-        lets any side project spin up a real private repo + starter README in one click.
-        needs a personal access token — <a href="https://github.com/settings/tokens/new?scopes=repo&description=job%20radar" target="_blank" style="color:var(--phosphor);">generate one here</a> (classic token, "repo" scope only is enough, nothing broader).
-        this goes straight from your browser to GitHub's API — the token is stored only in this browser's local storage, never sent anywhere else, and you can revoke it on GitHub any time.
+    <div id="profileRest" style="display:none;">
+      <div class="panel">
+        <h2>what you've got</h2>
+        <div class="desc">your proof points — feeds the gap analysis and plan, once you're ready for it. saved automatically.</div>
+        <textarea id="skillsBox" placeholder="shipped projects, roles, papers, anything that's proof of what you can do — one per line works fine"></textarea>
+        <div class="save-hint" id="saveHint"></div>
       </div>
-      <div id="ghSummary" style="display:none;">
-        <span id="ghSummaryText" style="font-size:12px;color:var(--text);"></span>
-        <button class="link-btn" id="ghChangeBtn" type="button">change</button>
-      </div>
-      <div id="ghForm">
-      <div class="row">
-        <div class="field">
-          <label>GitHub username</label>
-          <input type="text" id="ghUsername" placeholder="your-username">
+
+      <div class="panel">
+        <h2>upload your CV</h2>
+        <div class="desc">optional. pulls text from .pdf/.docx/.txt into every scan and plan. never leaves your storage.</div>
+        <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <label for="cvUpload" class="scan" style="display:inline-block;cursor:pointer;">▸ choose file</label>
+          <span id="cvFileName" style="font-size:12px;color:var(--text-dim);"></span>
+          <button id="cvRemove" class="star" style="display:none;width:auto;padding:0 10px;">remove</button>
         </div>
-        <div class="field">
-          <label>personal access token</label>
-          <input type="password" id="ghToken" placeholder="ghp_...">
+        <div class="save-hint" id="cvStatus"></div>
+      </div>
+
+      <div class="section-label">connections</div>
+
+      <div class="panel">
+        <h2>GitHub <button class="info-toggle" id="ghInfoBtn" title="what this is for / where it's stored" type="button">ⓘ</button></h2>
+        <div class="desc" id="ghInfoText" style="display:none;">
+          lets any side project spin up a real private repo + starter README in one click.
+          needs a personal access token — <a href="https://github.com/settings/tokens/new?scopes=repo&description=job%20radar" target="_blank" style="color:var(--phosphor);">generate one here</a> (classic token, "repo" scope only is enough, nothing broader).
+          this goes straight from your browser to GitHub's API — the token is stored only in this browser's local storage, never sent anywhere else, and you can revoke it on GitHub any time.
         </div>
-      </div>
-      <div class="actions">
-        <button class="scan secondary" id="ghSaveBtn">▸ save</button>
-        <span id="ghStatus" class="hint"></span>
-      </div>
+        <div id="ghSummary" style="display:none;">
+          <span id="ghSummaryText" style="font-size:12px;color:var(--text);"></span>
+          <button class="link-btn" id="ghChangeBtn" type="button">change</button>
+        </div>
+        <div id="ghForm">
+        <div class="row">
+          <div class="field">
+            <label>GitHub username</label>
+            <input type="text" id="ghUsername" placeholder="your-username">
+          </div>
+          <div class="field">
+            <label>personal access token</label>
+            <input type="password" id="ghToken" placeholder="ghp_...">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="scan secondary" id="ghSaveBtn">▸ save</button>
+          <span id="ghStatus" class="hint"></span>
+        </div>
+        </div>
       </div>
     </div>
+
+    <button class="link-btn" id="profileRestToggle" style="display:none;margin-top:4px;" type="button">▾ show proof points, CV upload, and GitHub</button>
   </div>
 
   <div id="viewPlan" style="display:none">
@@ -980,7 +986,7 @@ document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('apiKeyInput').value = '';
   loadApiKeyStatus();
   if(formatWarning) status.textContent += formatWarning;
-  settingGet('generated_rubric', null).then(r => refreshOnboardingBanner(!!r, true));
+  refreshOnboardingUI();
 });
 document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('openaiKeyInput').value.trim();
@@ -991,7 +997,7 @@ document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('openaiKeyInput').value = '';
   loadApiKeyStatus();
   if(formatWarning) status.textContent += formatWarning;
-  settingGet('generated_rubric', null).then(r => refreshOnboardingBanner(!!r, true));
+  refreshOnboardingUI();
 });
 document.getElementById('apiKeyInfoBtn').addEventListener('click', ()=>{
   const el = document.getElementById('apiKeyInfoText');
@@ -1521,22 +1527,9 @@ document.getElementById('navProfile').onclick = ()=>switchView('profile');
 document.getElementById('navPlan').onclick = ()=>switchView('plan');
 
 /* ---- profile: skills box ---- */
-const DEFAULT_SKILLS = `AI PM at a healthcare startup — ambient scribing, clinical documentation
-Shipped: EHR pipeline/summarizer self-service portal
-Shipped: practice settings dashboard with role-based access control
-Hands-on with Claude/LLMs — prompt architecture, config systems, builds working tools directly (not just specs)
-Research: CAISc 2026 paper on LLM tutoring failure modes (bare-assertion topology displacement) — submitted, peer reviewed
-Built: fully local edge voice AI on Raspberry Pi 5, Whisper + llama.cpp, found real Hindi tokenization inefficiency vs English
-Built: Bellandur Lake environmental tracker — satellite NDVI data, React dashboard, published
-Embedded systems: STM32 Nucleo, UART/GPIO/timers/debounce, CubeIDE + Arduino
-Circuit analysis: Thevenin/Norton with dependent sources, nodal analysis, noise margins, RC transients
-Studying Electronic Systems (BS, IIT Madras, part-time, 10/10 GPA) alongside full-time work
-Earlier: scaled Martian Wallet to 500K+ users; grew Kernel DAO to $300M+ TVL; co-founded Furrble (YC interview stage)
-Engineering background (integrated master's, Geophysical Technology, IIT Roorkee) — NOT a professional software developer, no shipped-code job history`;
-
 async function loadProfile(){
   const box = document.getElementById('skillsBox');
-  box.value = await settingGet('skills_profile', DEFAULT_SKILLS);
+  box.value = await settingGet('skills_profile', '');
   let saveTimer;
   box.addEventListener('input', ()=>{
     clearTimeout(saveTimer);
@@ -1602,7 +1595,7 @@ async function generateRubricFromStance(){
     await settingSet('generated_stance', parsed.stance);
     await settingSet('generated_rubric', parsed.rubric);
     status.textContent = 'scoring is personalized to your profile — future scans will use it';
-    refreshOnboardingBanner(true, !!(getAnthropicKey() || getOpenAIKey()));
+    refreshOnboardingUI();
   }catch(e){
     console.error('generateRubricFromStance failed', e);
     status.textContent = `couldn't generate: ${e.message}`;
@@ -1737,8 +1730,8 @@ document.getElementById('cvRemove').addEventListener('click', async ()=>{
 
 async function buildCandidateContext(){
   try{
-    return document.getElementById('skillsBox').value || DEFAULT_SKILLS;
-  }catch(e){ return DEFAULT_SKILLS; }
+    return document.getElementById('skillsBox').value || '';
+  }catch(e){ return ''; }
 }
 
 /* falls back to the old shared constants if this user hasn't generated a
@@ -1859,6 +1852,15 @@ document.getElementById('ghInfoBtn').addEventListener('click', ()=>{
 document.getElementById('ghChangeBtn').addEventListener('click', ()=>{
   document.getElementById('ghSummary').style.display = 'none';
   document.getElementById('ghForm').style.display = '';
+});
+
+document.getElementById('profileRestToggle').addEventListener('click', ()=>{
+  const rest = document.getElementById('profileRest');
+  const open = rest.style.display !== 'none';
+  rest.style.display = open ? 'none' : '';
+  document.getElementById('profileRestToggle').textContent = open
+    ? '▾ show proof points, CV upload, and GitHub'
+    : '▴ hide proof points, CV upload, and GitHub';
 });
 
 async function loadGithubStatus(){
@@ -2287,22 +2289,34 @@ async function showApp(){
   // not just job_stance text, because typing alone doesn't generate anything —
   // without this, a scan would silently fall back to the generic default
   // rubric with no indication that's what happened.
-  const generatedRubric = await settingGet('generated_rubric', null);
-  const hasKey = !!(getAnthropicKey() || getOpenAIKey());
-  if(!generatedRubric || !hasKey){
-    refreshOnboardingBanner(!!generatedRubric, hasKey);
-    document.getElementById('onboardingBanner').style.display = '';
-    switchView('profile');
-  }
+  const { rubricDone } = await refreshOnboardingUI();
+  if(!rubricDone) switchView('profile');
 }
-function refreshOnboardingBanner(rubricDone, keyDone){
+
+// Single source of truth for "is onboarding done" — both the banner and the
+// deferred profile section (skills/CV/GitHub) read from this, so there's one
+// place that decides what "done" means instead of each caller re-deriving it.
+async function onboardingState(){
+  const generatedRubric = await settingGet('generated_rubric', null);
+  return {
+    rubricDone: !!generatedRubric,
+    keyDone: !!(getAnthropicKey() || getOpenAIKey())
+  };
+}
+async function refreshOnboardingUI(){
+  const { rubricDone, keyDone } = await onboardingState();
   const step1 = document.getElementById('onboardStep1');
   const step2 = document.getElementById('onboardStep2');
   step1.style.textDecoration = rubricDone ? 'line-through' : 'none';
   step1.style.opacity = rubricDone ? '0.5' : '1';
   step2.style.textDecoration = keyDone ? 'line-through' : 'none';
   step2.style.opacity = keyDone ? '0.5' : '1';
-  if(rubricDone && keyDone) document.getElementById('onboardingBanner').style.display = 'none';
+  const done = rubricDone && keyDone;
+  document.getElementById('onboardingBanner').style.display = done ? 'none' : '';
+  document.getElementById('onboardingRest').style.display = done ? '' : 'none';
+  document.getElementById('profileRestToggle').style.display = done ? '' : 'none';
+  if(!done) document.getElementById('profileRest').style.display = 'none';
+  return { rubricDone, keyDone };
 }
 function showLoginGate(){
   document.getElementById('authGate').style.display = '';
