@@ -176,6 +176,25 @@
   .onboard-banner{border-color:var(--phosphor);background:var(--phosphor-soft);}
   .onboard-banner.done{border-color:var(--panel-line);background:var(--panel);}
   .onboard-banner.done .badge{border-color:var(--phosphor);background:var(--phosphor);color:#f7faf7;}
+  .onboard-step{cursor:default;}
+  .onboard-step.clickable{cursor:pointer;}
+  .onboard-step.clickable:hover .label b{text-decoration:underline;}
+
+  .wizard-step{display:none;}
+  .wizard-step.active{display:block;}
+  .wizard-summary{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border:1px solid var(--panel-line);background:var(--panel);
+    border-radius:8px;padding:12px 16px;margin-bottom:10px;
+  }
+  .wizard-summary .badge{
+    width:20px;height:20px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;color:#f7faf7;background:var(--phosphor);
+  }
+  .wizard-summary .text{flex:1;font-size:13px;color:var(--text-dim);}
+  .wizard-summary .text b{color:var(--text);font-weight:600;}
+  .wizard-nav{display:flex;gap:10px;margin-top:4px;margin-bottom:18px;}
   .info-toggle{
     background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
     padding:0;margin-left:4px;vertical-align:middle;
@@ -422,21 +441,31 @@
 
   <div id="viewProfile" style="display:none">
     <div id="onboardingBanner" class="panel onboard-banner" style="display:none;">
-      <h2 id="onboardHeading">welcome — 3 things first</h2>
+      <h2 id="onboardHeading">building your profile — 5 steps</h2>
       <div class="onboard-steps">
-        <div class="onboard-step" id="onboardStep1">
+        <div class="onboard-step" id="onboardStep1" data-step="stance">
           <div class="badge">1</div>
-          <div class="label"><b>write your stance</b>role, background, hard no's, location — below</div>
+          <div class="label"><b>your stance</b>role, background, hard no's, location</div>
         </div>
         <div class="onboard-connector"></div>
-        <div class="onboard-step" id="onboardStep2">
+        <div class="onboard-step" id="onboardStep2" data-step="apikey">
           <div class="badge">2</div>
-          <div class="label"><b>generate scoring</b>click "update my scoring" once you've written it</div>
+          <div class="label"><b>AI key</b>required to scan</div>
         </div>
         <div class="onboard-connector"></div>
-        <div class="onboard-step" id="onboardStep3">
+        <div class="onboard-step" id="onboardStep3" data-step="skills">
           <div class="badge">3</div>
-          <div class="label"><b>connect an AI key</b>required to scan — costs real spend on your own key</div>
+          <div class="label"><b>what you've got</b>optional, skip anytime</div>
+        </div>
+        <div class="onboard-connector"></div>
+        <div class="onboard-step" id="onboardStep4" data-step="cv">
+          <div class="badge">4</div>
+          <div class="label"><b>CV</b>optional, skip anytime</div>
+        </div>
+        <div class="onboard-connector"></div>
+        <div class="onboard-step" id="onboardStep5" data-step="github">
+          <div class="badge">5</div>
+          <div class="label"><b>GitHub</b>optional, skip anytime</div>
         </div>
       </div>
     </div>
@@ -450,71 +479,90 @@
       </div>
     </div>
 
-    <div class="section-label">your background</div>
-    <div class="panel">
-      <h2>1. what you're looking for</h2>
-      <div class="desc">plain language: role, background, hard no's, location. this is what scoring is based on.<br><br><i>example: "I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."</i></div>
-      <textarea id="stanceBox" placeholder="role, background, hard no's, location — write it in your own words"></textarea>
-      <div class="save-hint" id="stanceSaveHint"></div>
-      <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
-      <span id="rubricStatus" class="hint"></span>
-      <div class="desc" style="margin-top:6px;">takes ~10-20s, one model call on your own key.</div>
-    </div>
+    <div id="wizardSummaries"></div>
 
-    <div class="panel" style="border-color:var(--phosphor-dim);" id="apiKeyPanel">
-      <h2>2. AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
-      <div class="desc" id="apiKeyInfoText" style="display:none;">
-        required — nothing that calls the model works without a key for the provider you pick below.
-        both keys are stored only in <b>this browser</b>, never written to Supabase.
-        Claude calls go straight to Anthropic; OpenAI calls go browser → our auth-gated proxy → OpenAI (your key is sent in the request header only, not stored on the server).
-      </div>
-      <div id="apiKeySummary" style="display:none;">
-        <span id="apiKeySummaryText" style="font-size:12px;color:var(--text);"></span>
-        <button class="link-btn" id="apiKeyChangeBtn" type="button">change</button>
-      </div>
-      <div id="apiKeyForm">
-        <div class="row">
-          <div class="field" style="max-width:220px;">
-            <label for="llmProvider">provider</label>
-            <select id="llmProvider">
-              <option value="claude">Claude (Anthropic)</option>
-              <option value="openai">OpenAI</option>
-            </select>
-          </div>
-        </div>
-        <div class="row" id="claudeKeyRow">
-          <div class="field">
-            <label for="apiKeyInput">Claude API key — <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a></label>
-            <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
-          </div>
-        </div>
-        <div class="actions" id="claudeKeyActions" style="margin-bottom:14px;">
-          <button class="scan secondary" id="apiKeySaveBtn">▸ save Claude key</button>
-          <span id="apiKeyStatus" class="hint"></span>
-        </div>
-        <div class="row" id="openaiKeyRow">
-          <div class="field">
-            <label for="openaiKeyInput">OpenAI API key — <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--phosphor);">platform.openai.com</a></label>
-            <input type="password" id="openaiKeyInput" placeholder="sk-...">
-          </div>
-        </div>
-        <div class="actions" id="openaiKeyActions">
-          <button class="scan secondary" id="openaiKeySaveBtn">▸ save OpenAI key</button>
-          <span id="openaiKeyStatus" class="hint"></span>
-        </div>
-      </div>
-    </div>
-
-    <div id="profileRest" style="display:none;">
+    <div class="wizard-step" data-step="stance">
       <div class="panel">
-        <h2>what you've got</h2>
-        <div class="desc">your proof points — feeds the gap analysis and plan, once you're ready for it. saved automatically.</div>
+        <h2>1. what you're looking for</h2>
+        <div class="desc">plain language: role, background, hard no's, location. this is what scoring is based on.<br><br><i>example: "I'm looking for early-stage, high-ownership PM roles in deep-tech or robotics — not more healthcare, even though that's my current industry. I have an engineering background and can go deep with engineers, but I've never worked as a professional software developer, so roles that hard-require SWE experience are a dealbreaker for me. Based in Bengaluru, open to genuinely remote-friendly India-based roles. Not interested in VC, advisory, or crypto/Web3."</i></div>
+        <textarea id="stanceBox" placeholder="role, background, hard no's, location — write it in your own words"></textarea>
+        <div class="save-hint" id="stanceSaveHint"></div>
+        <button class="scan" id="generateRubricBtn" style="margin-top:8px;">▸ update my scoring</button>
+        <span id="rubricStatus" class="hint"></span>
+        <div class="desc" style="margin-top:6px;">takes ~10-20s, one model call on your own key.</div>
+      </div>
+      <div class="wizard-nav">
+        <button class="scan secondary" id="wizardNextStance" type="button" disabled>next: AI key →</button>
+      </div>
+    </div>
+
+    <div class="wizard-step" data-step="apikey">
+      <div class="panel" style="border-color:var(--phosphor-dim);" id="apiKeyPanel">
+        <h2>2. AI key <button class="info-toggle" id="apiKeyInfoBtn" title="why this is needed / where it's stored" type="button">ⓘ</button></h2>
+        <div class="desc" id="apiKeyInfoText" style="display:none;">
+          required — nothing that calls the model works without a key for the provider you pick below.
+          both keys are stored only in <b>this browser</b>, never written to Supabase.
+          Claude calls go straight to Anthropic; OpenAI calls go browser → our auth-gated proxy → OpenAI (your key is sent in the request header only, not stored on the server).
+        </div>
+        <div id="apiKeySummary" style="display:none;">
+          <span id="apiKeySummaryText" style="font-size:12px;color:var(--text);"></span>
+          <button class="link-btn" id="apiKeyChangeBtn" type="button">change</button>
+        </div>
+        <div id="apiKeyForm">
+          <div class="row">
+            <div class="field" style="max-width:220px;">
+              <label for="llmProvider">provider</label>
+              <select id="llmProvider">
+                <option value="claude">Claude (Anthropic)</option>
+                <option value="openai">OpenAI</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" id="claudeKeyRow">
+            <div class="field">
+              <label for="apiKeyInput">Claude API key — <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--phosphor);">console.anthropic.com</a></label>
+              <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+            </div>
+          </div>
+          <div class="actions" id="claudeKeyActions" style="margin-bottom:14px;">
+            <button class="scan secondary" id="apiKeySaveBtn">▸ save Claude key</button>
+            <span id="apiKeyStatus" class="hint"></span>
+          </div>
+          <div class="row" id="openaiKeyRow">
+            <div class="field">
+              <label for="openaiKeyInput">OpenAI API key — <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--phosphor);">platform.openai.com</a></label>
+              <input type="password" id="openaiKeyInput" placeholder="sk-...">
+            </div>
+          </div>
+          <div class="actions" id="openaiKeyActions">
+            <button class="scan secondary" id="openaiKeySaveBtn">▸ save OpenAI key</button>
+            <span id="openaiKeyStatus" class="hint"></span>
+          </div>
+        </div>
+      </div>
+      <div class="wizard-nav">
+        <button class="link-btn" id="wizardBackApikey" type="button">← back</button>
+        <button class="scan secondary" id="wizardNextApikey" type="button" disabled>next: what you've got →</button>
+      </div>
+    </div>
+
+    <div class="wizard-step" data-step="skills">
+      <div class="panel">
+        <h2>3. what you've got</h2>
+        <div class="desc">your proof points — feeds the gap analysis and plan, once you're ready for it. saved automatically. optional — skip if you'd rather fill this in later.</div>
         <textarea id="skillsBox" placeholder="shipped projects, roles, papers, anything that's proof of what you can do — one per line works fine"></textarea>
         <div class="save-hint" id="saveHint"></div>
       </div>
+      <div class="wizard-nav">
+        <button class="link-btn" id="wizardBackSkills" type="button">← back</button>
+        <button class="scan secondary" id="wizardNextSkills" type="button">next: CV →</button>
+        <button class="link-btn" id="wizardSkipSkills" type="button">skip</button>
+      </div>
+    </div>
 
+    <div class="wizard-step" data-step="cv">
       <div class="panel">
-        <h2>upload your CV</h2>
+        <h2>4. upload your CV</h2>
         <div class="desc">optional. pulls text from .pdf/.docx/.txt into every scan and plan. never leaves your storage.</div>
         <input type="file" id="cvUpload" accept=".pdf,.docx,.txt" style="display:none;">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -524,16 +572,22 @@
         </div>
         <div class="save-hint" id="cvStatus"></div>
       </div>
+      <div class="wizard-nav">
+        <button class="link-btn" id="wizardBackCv" type="button">← back</button>
+        <button class="scan secondary" id="wizardNextCv" type="button">next: GitHub →</button>
+        <button class="link-btn" id="wizardSkipCv" type="button">skip</button>
+      </div>
+    </div>
 
-      <div class="section-label">connections</div>
-
+    <div class="wizard-step" data-step="github">
       <div class="panel">
-        <h2>GitHub <button class="info-toggle" id="ghInfoBtn" title="what this is for / where it's stored" type="button">ⓘ</button></h2>
+        <h2>5. GitHub <button class="info-toggle" id="ghInfoBtn" title="what this is for / where it's stored" type="button">ⓘ</button></h2>
         <div class="desc" id="ghInfoText" style="display:none;">
           lets any side project spin up a real private repo + starter README in one click.
           needs a personal access token — <a href="https://github.com/settings/tokens/new?scopes=repo&description=job%20radar" target="_blank" style="color:var(--phosphor);">generate one here</a> (classic token, "repo" scope only is enough, nothing broader).
           this goes straight from your browser to GitHub's API — the token is stored only in this browser's local storage, never sent anywhere else, and you can revoke it on GitHub any time.
         </div>
+        <div class="desc">optional — skip if you don't want to auto-create proof-of-work repos yet.</div>
         <div id="ghSummary" style="display:none;">
           <span id="ghSummaryText" style="font-size:12px;color:var(--text);"></span>
           <button class="link-btn" id="ghChangeBtn" type="button">change</button>
@@ -555,9 +609,18 @@
         </div>
         </div>
       </div>
+      <div class="wizard-nav">
+        <button class="link-btn" id="wizardBackGithub" type="button">← back</button>
+        <button class="scan" id="wizardFinishGithub" type="button">done →</button>
+        <button class="link-btn" id="wizardSkipGithub" type="button">skip</button>
+      </div>
     </div>
 
-    <button class="link-btn" id="profileRestToggle" style="display:none;margin-top:4px;" type="button">▾ show proof points, CV upload, and GitHub</button>
+    <div id="wizardDone" class="panel" style="display:none;">
+      <h2>profile complete</h2>
+      <div class="desc">everything's set up — head to scan to start finding roles, or jump back to any step above to make changes.</div>
+      <button class="scan" id="wizardGoScan" type="button">▸ go to scan</button>
+    </div>
   </div>
 
   <div id="viewPlan" style="display:none">
@@ -1025,7 +1088,7 @@ document.getElementById('apiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('apiKeyInput').value = '';
   loadApiKeyStatus();
   if(formatWarning) status.textContent += formatWarning;
-  refreshOnboardingUI();
+  refreshWizardState();
 });
 document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   const val = document.getElementById('openaiKeyInput').value.trim();
@@ -1036,7 +1099,7 @@ document.getElementById('openaiKeySaveBtn').addEventListener('click', ()=>{
   document.getElementById('openaiKeyInput').value = '';
   loadApiKeyStatus();
   if(formatWarning) status.textContent += formatWarning;
-  refreshOnboardingUI();
+  refreshWizardState();
 });
 document.getElementById('apiKeyInfoBtn').addEventListener('click', ()=>{
   const el = document.getElementById('apiKeyInfoText');
@@ -1680,7 +1743,7 @@ async function generateRubricFromStance(){
     await settingSet('generated_stance', parsed.stance);
     await settingSet('generated_rubric', parsed.rubric);
     status.textContent = 'scoring is personalized to your profile — future scans will use it';
-    refreshOnboardingUI();
+    refreshWizardState();
   }catch(e){
     console.error('generateRubricFromStance failed', e);
     status.textContent = `couldn't generate: ${e.message}`;
@@ -1939,14 +2002,6 @@ document.getElementById('ghChangeBtn').addEventListener('click', ()=>{
   document.getElementById('ghForm').style.display = '';
 });
 
-document.getElementById('profileRestToggle').addEventListener('click', ()=>{
-  const rest = document.getElementById('profileRest');
-  const open = rest.style.display !== 'none';
-  rest.style.display = open ? 'none' : '';
-  document.getElementById('profileRestToggle').textContent = open
-    ? '▾ show proof points, CV upload, and GitHub'
-    : '▴ hide proof points, CV upload, and GitHub';
-});
 
 async function loadGithubStatus(){
   const creds = await getGithubCreds();
@@ -2370,53 +2425,159 @@ async function showApp(){
   // not just job_stance text, because typing alone doesn't generate anything —
   // without this, a scan would silently fall back to the generic default
   // rubric with no indication that's what happened.
-  const { rubricDone } = await refreshOnboardingUI();
+  const { rubricDone } = await onboardingState();
+  await goToWizardStep(await firstIncompleteWizardStep());
   switchView(rubricDone ? 'scan' : 'profile');
   document.getElementById('appShell').style.display = '';
 }
 
-// Single source of truth for "is onboarding done" — both the step tracker and
-// the deferred profile section (skills/CV/GitHub) read from this, so there's
-// one place that decides what "done" means instead of each caller re-deriving it.
+/* ---- profile wizard: one step visible at a time instead of a flat page of
+   panels. Each step's own load/save logic (loadStance, loadApiKeyStatus, etc.)
+   is untouched — the wizard only controls which .wizard-step is visible and
+   renders a compact summary row for every step already completed or skipped. */
+const WIZARD_STEPS = ['stance', 'apikey', 'skills', 'cv', 'github'];
+
+// Single source of truth for "is onboarding done" / "is step X done" — the
+// step tracker, the wizard's next/skip gating, and the summary rows all read
+// from this, so there's one place that decides what "done" means per step.
 async function onboardingState(){
   const stance = (await settingGet('job_stance', '')).trim();
   const generatedRubric = await settingGet('generated_rubric', null);
+  const skills = (await settingGet('skills_profile', '')).trim();
+  const cvFilename = await settingGet('cv_filename', null);
+  const ghCreds = await getGithubCreds();
   return {
     stanceDone: !!stance,
     rubricDone: !!generatedRubric,
-    keyDone: !!(getAnthropicKey() || getOpenAIKey())
+    keyDone: !!(getAnthropicKey() || getOpenAIKey()),
+    skillsDone: !!skills || (await settingGet('skills_step_skipped', false)),
+    cvDone: !!cvFilename || (await settingGet('cv_step_skipped', false)),
+    githubDone: !!ghCreds.username || (await settingGet('github_step_skipped', false))
   };
+}
+function isStepDone(state, step){
+  if(step === 'stance') return state.rubricDone;
+  if(step === 'apikey') return state.keyDone;
+  if(step === 'skills') return state.skillsDone;
+  if(step === 'cv') return state.cvDone;
+  if(step === 'github') return state.githubDone;
+  return false;
+}
+async function firstIncompleteWizardStep(){
+  const state = await onboardingState();
+  const firstIncomplete = WIZARD_STEPS.find(s => !isStepDone(state, s));
+  return firstIncomplete || 'done';
 }
 function setOnboardStepClass(el, state){
   el.classList.remove('done', 'current');
   if(state) el.classList.add(state);
 }
-async function refreshOnboardingUI(){
-  const { stanceDone, rubricDone, keyDone } = await onboardingState();
+async function renderWizardSummaries(currentStep, state){
+  const container = document.getElementById('wizardSummaries');
+  const currentIdx = WIZARD_STEPS.indexOf(currentStep);
+  const upto = currentIdx === -1 ? WIZARD_STEPS.length : currentIdx;
+  const rows = [];
+  for(let i=0; i<upto; i++){
+    const step = WIZARD_STEPS[i];
+    if(!isStepDone(state, step)) continue;
+    rows.push(`
+      <div class="wizard-summary">
+        <div class="badge">✓</div>
+        <div class="text">${await wizardSummaryText(step, state)}</div>
+        <button class="link-btn" data-jump="${step}" type="button">edit</button>
+      </div>`);
+  }
+  container.innerHTML = rows.join('');
+  container.querySelectorAll('[data-jump]').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToWizardStep(btn.dataset.jump));
+  });
+}
+async function wizardSummaryText(step, state){
+  if(step === 'stance') return '<b>your stance</b> — set, scoring is personalized';
+  if(step === 'apikey') return '<b>AI key</b> — connected';
+  if(step === 'skills'){
+    const skills = (await settingGet('skills_profile', '')).trim();
+    return skills ? '<b>what you\'ve got</b> — added' : '<b>what you\'ve got</b> — skipped for now';
+  }
+  if(step === 'cv'){
+    const filename = await settingGet('cv_filename', null);
+    return filename ? `<b>CV</b> — ${escapeHtml(filename)}` : '<b>CV</b> — skipped for now';
+  }
+  if(step === 'github'){
+    const creds = await getGithubCreds();
+    return creds.username ? `<b>GitHub</b> — connected as ${escapeHtml(creds.username)}` : '<b>GitHub</b> — skipped for now';
+  }
+  return '';
+}
+function currentWizardStep(){
+  const active = document.querySelector('.wizard-step.active');
+  return active ? active.dataset.step : (document.getElementById('wizardDone').style.display !== 'none' ? 'done' : WIZARD_STEPS[0]);
+}
+// Re-runs the same refresh goToWizardStep does, without changing which step
+// is showing — used after an in-place change (e.g. saving an API key) so the
+// banner/nav buttons update without forcing navigation to a different step.
+async function refreshWizardState(){
+  await goToWizardStep(currentWizardStep());
+}
+async function goToWizardStep(step){
+  const state = await onboardingState();
+  document.querySelectorAll('.wizard-step').forEach(el=>{
+    el.classList.toggle('active', el.dataset.step === step);
+  });
+  document.getElementById('wizardDone').style.display = step === 'done' ? '' : 'none';
+  await renderWizardSummaries(step, state);
+  await refreshOnboardingBanner(state, step);
+  updateWizardNavButtons(state);
+}
+async function refreshOnboardingBanner(state, currentStep){
   const step1 = document.getElementById('onboardStep1');
   const step2 = document.getElementById('onboardStep2');
   const step3 = document.getElementById('onboardStep3');
-  // current = the first not-yet-done step, so exactly one step is ever
-  // highlighted as "do this now" instead of all remaining steps looking equal.
-  setOnboardStepClass(step1, stanceDone ? 'done' : 'current');
-  setOnboardStepClass(step2, rubricDone ? 'done' : (stanceDone ? 'current' : null));
-  setOnboardStepClass(step3, keyDone ? 'done' : (rubricDone ? 'current' : null));
-
-  const done = rubricDone && keyDone;
+  const step4 = document.getElementById('onboardStep4');
+  const step5 = document.getElementById('onboardStep5');
+  const els = { stance: step1, apikey: step2, skills: step3, cv: step4, github: step5 };
+  WIZARD_STEPS.forEach(step=>{
+    setOnboardStepClass(els[step], isStepDone(state, step) ? 'done' : (step === currentStep ? 'current' : null));
+  });
+  const allDone = WIZARD_STEPS.every(s => isStepDone(state, s));
   const heading = document.getElementById('onboardHeading');
   const banner = document.getElementById('onboardingBanner');
-  if(done){
-    heading.textContent = "you're ready — scoring is set up and your AI key is connected";
-  }else{
-    heading.textContent = 'welcome — 3 things first';
-  }
-  banner.classList.toggle('done', done);
+  heading.textContent = allDone ? "you're all set — profile complete" : 'building your profile — 5 steps';
+  banner.classList.toggle('done', allDone);
   banner.style.display = '';
-  document.getElementById('onboardingRest').style.display = done ? '' : 'none';
-  document.getElementById('profileRestToggle').style.display = done ? '' : 'none';
-  if(!done) document.getElementById('profileRest').style.display = 'none';
-  return { stanceDone, rubricDone, keyDone };
+  document.getElementById('onboardingRest').style.display = (state.rubricDone && state.keyDone) ? '' : 'none';
 }
+function updateWizardNavButtons(state){
+  document.getElementById('wizardNextStance').disabled = !state.rubricDone;
+  document.getElementById('wizardNextApikey').disabled = !state.keyDone;
+}
+document.querySelectorAll('.onboard-step').forEach(el=>{
+  el.classList.add('clickable');
+  el.addEventListener('click', ()=> goToWizardStep(el.dataset.step));
+});
+document.getElementById('wizardNextStance').addEventListener('click', ()=> goToWizardStep('apikey'));
+document.getElementById('wizardBackApikey').addEventListener('click', ()=> goToWizardStep('stance'));
+document.getElementById('wizardNextApikey').addEventListener('click', ()=> goToWizardStep('skills'));
+document.getElementById('wizardBackSkills').addEventListener('click', ()=> goToWizardStep('apikey'));
+document.getElementById('wizardNextSkills').addEventListener('click', ()=> goToWizardStep('cv'));
+document.getElementById('wizardSkipSkills').addEventListener('click', async ()=>{
+  await settingSet('skills_step_skipped', true);
+  goToWizardStep('cv');
+});
+document.getElementById('wizardBackCv').addEventListener('click', ()=> goToWizardStep('skills'));
+document.getElementById('wizardNextCv').addEventListener('click', ()=> goToWizardStep('github'));
+document.getElementById('wizardSkipCv').addEventListener('click', async ()=>{
+  await settingSet('cv_step_skipped', true);
+  goToWizardStep('github');
+});
+document.getElementById('wizardBackGithub').addEventListener('click', ()=> goToWizardStep('cv'));
+document.getElementById('wizardFinishGithub').addEventListener('click', ()=> goToWizardStep('done'));
+document.getElementById('wizardSkipGithub').addEventListener('click', async ()=>{
+  await settingSet('github_step_skipped', true);
+  goToWizardStep('done');
+});
+document.getElementById('wizardGoScan').addEventListener('click', ()=> switchView('scan'));
+
 function showLoginGate(){
   document.getElementById('authGate').style.display = '';
   document.getElementById('appShell').style.display = 'none';
