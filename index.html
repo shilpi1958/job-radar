@@ -220,6 +220,7 @@
   .score-high{color:var(--phosphor);}
   .score-mid{color:var(--amber);}
   .score-low{color:var(--danger);}
+  .score-warn{font-size:11px;color:var(--danger);white-space:nowrap;cursor:help;}
   .star{
     background:none;border:1px solid var(--panel-line);color:var(--text-dim);
     width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px;
@@ -377,6 +378,7 @@
   </div>
 
   <div class="status" id="status"></div>
+  <div class="hint" id="scoreTrustNote" style="display:none;margin-bottom:10px;"></div>
   <div id="results"></div>
 
   <div class="panel">
@@ -1385,6 +1387,7 @@ async function runScan(){
     currentResults = await mergeIntoStack(freshJobs, 'scan', scanId);
     scanLog[signature] = Date.now();
     await settingSet('scan_log', scanLog);
+    await recordScoreInconsistencies(freshJobs.filter(j => scoreInconsistency(j)).length);
     statusEl(`${freshJobs.length} found this scan · ${currentResults.length} total stacked${recoveredNote} · ${new Date().toLocaleTimeString()}`, false);
   }catch(e){
     console.error(e);
@@ -1392,6 +1395,48 @@ async function runScan(){
   }
   btn.disabled = false;
   render();
+}
+
+/* ---- score trust: the model scores its own results with no outside check.
+   This can't catch a wrong score, only an internally contradictory one — e.g.
+   the model names a hard gate but still scores the role 80+, or gives a score
+   with no stated reasoning at all. Those are the cases where trusting the
+   number outright would be actively misleading rather than just imprecise. */
+function scoreInconsistency(job){
+  const score = typeof job.score === 'number' ? job.score : null;
+  if(score === null) return null;
+  if(score < 0 || score > 100) return `score of ${score} is outside the 0-100 range the model was asked to use`;
+  if(job.gate && score >= 70) return `scored ${score} despite a stated gate ("${job.gate}") that should have capped it lower`;
+  if(!job.fit && !job.jd_summary) return `scored ${score} with no stated reasoning to back it up`;
+  return null;
+}
+async function recordScoreInconsistencies(n){
+  if(!n) return;
+  const count = await settingGet('score_inconsistency_count', 0);
+  await settingSet('score_inconsistency_count', count + n);
+  updateScoreTrustNote();
+}
+async function updateScoreTrustNote(){
+  const el = document.getElementById('scoreTrustNote');
+  if(!el) return;
+  const inconsistent = await settingGet('score_inconsistency_count', 0);
+  if(!inconsistent){ el.style.display = 'none'; return; }
+  el.textContent = `${inconsistent} scored result${inconsistent===1?'':'s'} flagged ⚠ inconsistent so far — the model's score contradicted its own stated reasoning or gate.`;
+  el.style.display = '';
+}
+function scoreMeterHtml(job){
+  const score = typeof job.score === 'number' ? job.score : null;
+  if(score === null) return '';
+  const band = score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
+  const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
+  const warning = scoreInconsistency(job);
+  return `
+      <div class="meter-wrap">
+        <span class="meter-label">match</span>
+        <div class="meter"><div class="meter-fill" style="width:${score}%;background:${fillColor}"></div></div>
+        <span class="meter-score score-${band}">${score}</span>
+        ${warning ? `<span class="score-warn" title="${escapeAttr(warning)}">⚠ inconsistent</span>` : ''}
+      </div>`;
 }
 
 function render(){
@@ -1405,9 +1450,6 @@ function render(){
   container.innerHTML = list.map(job=>{
     const key = job.company + '::' + job.title;
     const isTracked = trackedNormalized.includes((job.company||'').toLowerCase().trim());
-    const score = typeof job.score === 'number' ? job.score : null;
-    const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
-    const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
     return `
     <div class="card" data-job-key="${encodeURIComponent(key)}">
       <div class="card-top">
@@ -1423,12 +1465,7 @@ function render(){
         </div>
       </div>
       <div class="watch-feedback hint" data-company-feedback="${escapeAttr(job.company||'')}" style="display:none;color:var(--phosphor);">→ added to your plan targets</div>
-      ${score!==null ? `
-      <div class="meter-wrap">
-        <span class="meter-label">match</span>
-        <div class="meter"><div class="meter-fill" style="width:${score}%;background:${fillColor}"></div></div>
-        <span class="meter-score score-${band}">${score}</span>
-      </div>` : ''}
+      ${scoreMeterHtml(job)}
       ${job.fit ? `<div class="fit"><b>fit:</b> ${escapeHtml(job.fit)}</div>` : ''}
       ${job.gate ? `<div class="gate blocked">⚠ gate: ${escapeHtml(job.gate)}</div>` : ''}
     </div>`;
@@ -2211,9 +2248,6 @@ function renderWatchResults(){
     return;
   }
   container.innerHTML = jobs.map(job=>{
-    const score = typeof job.score === 'number' ? job.score : null;
-    const band = score===null ? '' : score>=70 ? 'high' : score>=45 ? 'mid' : 'low';
-    const fillColor = band==='high' ? 'var(--phosphor)' : band==='mid' ? 'var(--amber)' : 'var(--danger)';
     const key = (job.company||'') + '::' + (job.title||'');
     return `
     <div class="card">
@@ -2228,12 +2262,7 @@ function renderWatchResults(){
           <button class="star broken-btn" data-key="${encodeURIComponent(key)}" title="mark link as dead / page not found">⚠✕</button>
         </div>
       </div>
-      ${score!==null ? `
-      <div class="meter-wrap">
-        <span class="meter-label">match</span>
-        <div class="meter"><div class="meter-fill" style="width:${score}%;background:${fillColor}"></div></div>
-        <span class="meter-score score-${band}">${score}</span>
-      </div>` : ''}
+      ${scoreMeterHtml(job)}
       ${job.jd_summary ? `<div class="fit"><b>role:</b> ${escapeHtml(job.jd_summary)}</div>` : (job.fit ? `<div class="fit"><b>fit:</b> ${escapeHtml(job.fit)}</div>` : '')}
       ${job.gate ? `<div class="gate blocked">⚠ gate: ${escapeHtml(job.gate)}</div>` : ''}
     </div>`;
@@ -2323,6 +2352,7 @@ async function showApp(){
   loadStoredPlan();
   loadApiKeyStatus();
   updateSpendDisplay();
+  updateScoreTrustNote();
 
   // new users (or anyone who's typed a stance but never clicked "update my
   // scoring") land on Profile instead of Scan. Gating on generated_rubric,
